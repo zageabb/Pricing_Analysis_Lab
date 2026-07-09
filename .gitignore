@@ -5,6 +5,7 @@ __pycache__/
 .DS_Store
 instance/
 uploads/
+data/
 *.db
 *.sqlite3
 coverage.xml
