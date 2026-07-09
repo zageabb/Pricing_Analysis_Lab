@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Guided Pricing Workflow</p>
+  <h1>Spreadsheet-driven pricing analysis for people and agents.</h1>
+  <p class="lede">
+    The analysis engine, JSON API, prompt manager, and LLM settings all live in one place.
+  </p>
+</section>
+
+<section class="panel">
+  <h2>Planned Flow</h2>
+  <ol class="step-list">
+    {% for step in steps %}
+    <li>{{ step }}</li>
+    {% endfor %}
+  </ol>
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Run History</h1>
+  {% if runs %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Request ID</th><th>Status</th><th>Analysis</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td>{{ run.request_id }}</td>
+        <td>{{ run.status }}</td>
+        <td>{{ run.analysis_type or "-" }}</td>
+        <td>{{ run.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No analysis runs yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

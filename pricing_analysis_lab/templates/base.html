@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pricing Analysis Lab</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">Pricing Analysis Lab</div>
+        <nav>
+          <a href="{{ url_for('analysis.home') }}">Analysis</a>
+          <a href="{{ url_for('settings.index') }}">LLM Settings</a>
+          <a href="{{ url_for('admin.prompts') }}">Prompt Manager</a>
+          <a href="{{ url_for('history.index') }}">Run History</a>
+          <a href="{{ url_for('api.health') }}">API Health</a>
+        </nav>
+      </aside>
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+</html>

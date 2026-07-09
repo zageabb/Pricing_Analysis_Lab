@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>LLM Settings</h1>
+  <table class="data-table">
+    <thead>
+      <tr><th>Key</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+      {% for setting in settings %}
+      <tr>
+        <td>{{ setting.key }}</td>
+        <td>{{ setting.value }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Prompt Files</h2>
+  <ul class="simple-list">
+    {% for prompt in prompts %}
+    <li>{{ prompt.name }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

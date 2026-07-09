@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Prompt Manager</h1>
+  <ul class="simple-list">
+    {% for prompt in prompts %}
+    <li>{{ prompt.name }}<span class="muted"> {{ prompt.path }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
