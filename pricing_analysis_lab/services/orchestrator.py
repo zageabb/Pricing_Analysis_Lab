@@ -6,11 +6,12 @@ from ..schemas import AnalysisPlan, AnalysisRequest
 
 
 def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[str, Any]) -> AnalysisPlan:
-    target_field = request_model.target_fields[0] if request_model.target_fields else None
     columns = {column["name"]: column for column in dataset_profile.get("columns", [])}
     row_count = dataset_profile.get("row_count", 0)
     preferred_model = request_model.model_preferences.preferred_model.lower().strip()
     preferred_function = _preferred_function_for_request(request_model.task, preferred_model)
+    target_field = _select_target_field(request_model, columns)
+    feature_fields = _select_feature_fields(request_model, columns, target_field)
 
     if request_model.task == "data summary/statistical analysis":
         return AnalysisPlan(
@@ -27,20 +28,21 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
         return AnalysisPlan(
             selected_function="nearest_neighbor_similarity" if request_model.input_parameters else "filtered_search",
             reason="The request explicitly asked for search-style matching.",
+            feature_fields=feature_fields,
+            target_field=target_field,
         )
 
-    if target_field and target_field in columns and row_count >= 8:
+    if target_field and target_field in columns and feature_fields and row_count >= 3:
         inferred_type = columns[target_field]["inferred_type"]
-        feature_fields = request_model.parameter_fields or [
-            column["name"] for column in dataset_profile["columns"] if column["name"] != target_field
-        ]
         if request_model.task == "classification" or inferred_type in {"category", "text"}:
             selected_function = preferred_function or (
-                "gradient_boosting_classification" if row_count >= 40 else "random_forest_classification"
+                "gradient_boosting_classification"
+                if row_count >= 40
+                else "random_forest_classification"
             )
             return AnalysisPlan(
                 selected_function=selected_function,
-                reason="The target field looks categorical and there are enough rows for supervised classification.",
+                reason=_classification_reason(row_count),
                 target_field=target_field,
                 feature_fields=feature_fields,
                 model_settings={
@@ -55,7 +57,7 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
             selected_function = preferred_function or _auto_regression_function(row_count)
             return AnalysisPlan(
                 selected_function=selected_function,
-                reason="The target field is numeric and there are enough rows for supervised regression.",
+                reason=_regression_reason(row_count),
                 target_field=target_field,
                 feature_fields=feature_fields,
                 model_settings={
@@ -67,10 +69,12 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
                 },
             )
 
-    if request_model.input_parameters:
+    if request_model.input_parameters or feature_fields or request_model.output_fields:
         return AnalysisPlan(
             selected_function="nearest_neighbor_similarity" if preferred_function != "filtered_search" else "filtered_search",
-            reason="There is not enough signal for a supervised model, so returning matching rows is safer.",
+            reason=_search_fallback_reason(target_field, feature_fields, row_count),
+            feature_fields=feature_fields,
+            target_field=target_field,
         )
 
     return AnalysisPlan(
@@ -127,3 +131,58 @@ def _auto_regression_function(row_count: int) -> str:
     if row_count <= 15:
         return "linear_regression"
     return "random_forest_regression"
+
+
+def _select_target_field(request_model: AnalysisRequest, columns: dict[str, Any]) -> str | None:
+    for name in request_model.target_fields:
+        if name in columns:
+            return name
+    for name in request_model.output_fields:
+        if name in columns and name not in request_model.parameter_fields:
+            return name
+    for candidate in ("price", "cost", "margin", "profit", "revenue", "sale_price"):
+        if candidate in columns:
+            return candidate
+    return None
+
+
+def _select_feature_fields(
+    request_model: AnalysisRequest,
+    columns: dict[str, Any],
+    target_field: str | None,
+) -> list[str]:
+    excluded = set(request_model.excluded_fields)
+    preferred = [
+        name
+        for name in request_model.parameter_fields
+        if name in columns and name != target_field and name not in excluded
+    ]
+    if preferred:
+        return preferred
+    return [
+        name
+        for name in columns
+        if name != target_field and name not in excluded
+    ]
+
+
+def _regression_reason(row_count: int) -> str:
+    if row_count < 8:
+        return "The target field is numeric, so using a lightweight regression baseline despite the small sample size."
+    return "The target field is numeric and there are enough rows for supervised regression."
+
+
+def _classification_reason(row_count: int) -> str:
+    if row_count < 12:
+        return "The target field looks categorical, so using a directional classification baseline even though the sample is small."
+    return "The target field looks categorical and there are enough rows for supervised classification."
+
+
+def _search_fallback_reason(target_field: str | None, feature_fields: list[str], row_count: int) -> str:
+    if target_field and not feature_fields:
+        return "A target was identified, but no usable feature fields remained after exclusions, so falling back to row matching."
+    if target_field and row_count < 3:
+        return "A target was identified, but there are too few rows to fit a meaningful supervised model, so falling back to row matching."
+    if feature_fields:
+        return "Field selections were supplied, but there is not enough supervised signal yet, so returning matching rows is safer."
+    return "There is not enough signal for a supervised model, so returning matching rows is safer."
