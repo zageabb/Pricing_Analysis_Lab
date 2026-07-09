@@ -59,7 +59,7 @@
 
 <section class="panel">
   <h2>Step 2-6: Configure and Run</h2>
-  <form method="post" action="{{ url_for('analysis.update_wizard') }}" class="form-grid">
+  <form id="wizard-form" method="post" action="{{ url_for('analysis.update_wizard') }}" class="form-grid">
     <input type="hidden" name="file_id" value="{{ selected_file_id }}">
     <input type="hidden" name="next_step" value="{{ current_step + 1 if current_step < 7 else 7 }}">
     <label>Sheet Name<input type="text" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or dataset_profile.sheet_name or '' }}"></label>
@@ -189,43 +189,35 @@
 
 <section class="panel">
   <h2>Save Current Configuration</h2>
-  <form method="post" action="{{ url_for('analysis.save_config') }}" class="form-grid">
-    <input type="hidden" name="file_id" value="{{ selected_file_id }}">
-    <input type="hidden" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or '' }}">
-    <input type="hidden" name="task" value="{{ wizard_state.task }}">
-    <input type="hidden" name="parameter_fields" value="{{ wizard_state.parameter_fields | join(', ') }}">
-    <input type="hidden" name="target_fields" value="{{ wizard_state.target_fields | join(', ') }}">
-    <input type="hidden" name="output_fields" value="{{ wizard_state.output_fields | join(', ') }}">
-    <input type="hidden" name="excluded_fields" value="{{ wizard_state.excluded_fields | join(', ') }}">
-    <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
-    <input type="hidden" name="filter_parameters" value='{{ wizard_state.filter_parameters | tojson }}'>
-    <input type="hidden" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}">
-    {% if wizard_state.model_preferences.allow_llm_to_tune %}
-    <input type="hidden" name="allow_llm_to_tune" value="on">
-    {% endif %}
-    <label>Config Name<input type="text" name="config_name" placeholder="UK transformer pricing baseline"></label>
-    <div class="form-actions"><button type="submit">Save Configuration</button></div>
-  </form>
+  <div class="form-grid">
+    <label>Config Name<input type="text" name="config_name" form="wizard-form" placeholder="UK transformer pricing baseline"></label>
+    <div class="form-actions">
+      <button
+        type="submit"
+        form="wizard-form"
+        formaction="{{ url_for('analysis.save_config') }}"
+        formmethod="post"
+      >
+        Save Configuration
+      </button>
+    </div>
+  </div>
 </section>
 
 <section class="panel">
   <h2>Step 4-5: Generate and Review Plan</h2>
-  <form method="post" action="{{ url_for('analysis.generate_plan') }}" class="form-grid">
-    <input type="hidden" name="file_id" value="{{ selected_file_id }}">
-    <input type="hidden" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or '' }}">
-    <input type="hidden" name="task" value="{{ wizard_state.task }}">
-    <input type="hidden" name="parameter_fields" value="{{ wizard_state.parameter_fields | join(', ') }}">
-    <input type="hidden" name="target_fields" value="{{ wizard_state.target_fields | join(', ') }}">
-    <input type="hidden" name="output_fields" value="{{ wizard_state.output_fields | join(', ') }}">
-    <input type="hidden" name="excluded_fields" value="{{ wizard_state.excluded_fields | join(', ') }}">
-    <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
-    <input type="hidden" name="filter_parameters" value='{{ wizard_state.filter_parameters | tojson }}'>
-    <input type="hidden" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}">
-    {% if wizard_state.model_preferences.allow_llm_to_tune %}
-    <input type="hidden" name="allow_llm_to_tune" value="on">
-    {% endif %}
-    <div class="form-actions"><button type="submit">Generate Model Plan</button></div>
-  </form>
+  <div class="form-grid">
+    <div class="form-actions">
+      <button
+        type="submit"
+        form="wizard-form"
+        formaction="{{ url_for('analysis.generate_plan') }}"
+        formmethod="post"
+      >
+        Generate Model Plan
+      </button>
+    </div>
+  </div>
   {% if plan_preview %}
   <pre class="json-block">{{ plan_preview | tojson(indent=2) }}</pre>
   {% endif %}
@@ -233,22 +225,18 @@
 
 <section class="panel">
   <h2>Step 6: Run Analysis</h2>
-  <form method="post" action="{{ url_for('analysis.run') }}" class="form-grid">
-    <input type="hidden" name="file_id" value="{{ selected_file_id }}">
-    <input type="hidden" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or '' }}">
-    <input type="hidden" name="task" value="{{ wizard_state.task }}">
-    <input type="hidden" name="parameter_fields" value="{{ wizard_state.parameter_fields | join(', ') }}">
-    <input type="hidden" name="target_fields" value="{{ wizard_state.target_fields | join(', ') }}">
-    <input type="hidden" name="output_fields" value="{{ wizard_state.output_fields | join(', ') }}">
-    <input type="hidden" name="excluded_fields" value="{{ wizard_state.excluded_fields | join(', ') }}">
-    <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
-    <input type="hidden" name="filter_parameters" value='{{ wizard_state.filter_parameters | tojson }}'>
-    <input type="hidden" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}">
-    {% if wizard_state.model_preferences.allow_llm_to_tune %}
-    <input type="hidden" name="allow_llm_to_tune" value="on">
-    {% endif %}
-    <div class="form-actions"><button type="submit">Run Analysis</button></div>
-  </form>
+  <div class="form-grid">
+    <div class="form-actions">
+      <button
+        type="submit"
+        form="wizard-form"
+        formaction="{{ url_for('analysis.run') }}"
+        formmethod="post"
+      >
+        Run Analysis
+      </button>
+    </div>
+  </div>
 </section>
 
 <section class="panel">
