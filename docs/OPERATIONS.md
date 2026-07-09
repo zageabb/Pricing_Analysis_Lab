@@ -9,10 +9,22 @@ python3 -m pip install -r requirements.txt
 python3 app.py
 ```
 
-Default local URL:
+Default bind address:
+
+```text
+0.0.0.0:5052
+```
+
+Open locally with:
 
 ```text
 http://127.0.0.1:5052
+```
+
+Open from another device on the same network with:
+
+```text
+http://<your-machine-ip>:5052
 ```
 
 ## Runtime Configuration

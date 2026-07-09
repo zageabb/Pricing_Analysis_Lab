@@ -20,7 +20,7 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"check_same_thread": False}}
 
     APP_NAME = "Pricing Analysis Lab"
-    HOST = os.environ.get("HOST", "127.0.0.1")
+    HOST = os.environ.get("HOST", "0.0.0.0")
     PORT = int(os.environ.get("PORT", "5052"))
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 

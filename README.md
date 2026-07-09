@@ -51,7 +51,9 @@ python3 -m pip install -r requirements.txt
 python3 app.py
 ```
 
-Open [http://127.0.0.1:5052](http://127.0.0.1:5052).
+The app listens on `0.0.0.0:5052` by default.
+
+Open it locally at [http://127.0.0.1:5052](http://127.0.0.1:5052), or from another device on your network at `http://<your-machine-ip>:5052`.
 
 ## Main Pages
 
