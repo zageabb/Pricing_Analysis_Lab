@@ -2,6 +2,24 @@
 {% block content %}
 <section class="panel">
   <h1>LLM Settings</h1>
+  <form method="post" class="form-grid">
+    <label>Provider<input type="text" name="provider" value="{{ llm_settings.provider }}"></label>
+    <label>Base URL<input type="text" name="base_url" value="{{ llm_settings.base_url }}"></label>
+    <label>API Key Env<input type="text" name="api_key_env" value="{{ llm_settings.api_key_env }}"></label>
+    <label>Model Name<input type="text" name="model_name" value="{{ llm_settings.model_name }}"></label>
+    <label>Temperature<input type="number" step="0.01" name="temperature" value="{{ llm_settings.temperature }}"></label>
+    <label>Top P<input type="number" step="0.01" name="top_p" value="{{ llm_settings.top_p }}"></label>
+    <label>Max Tokens<input type="number" name="max_tokens" value="{{ llm_settings.max_tokens }}"></label>
+    <label>Timeout<input type="number" name="timeout" value="{{ llm_settings.timeout }}"></label>
+    <label>Retry Count<input type="number" name="retry_count" value="{{ llm_settings.retry_count }}"></label>
+    <label class="checkbox-row"><input type="checkbox" name="streaming" {% if llm_settings.streaming %}checked{% endif %}> Streaming</label>
+    <label class="checkbox-row"><input type="checkbox" name="json_mode" {% if llm_settings.json_mode %}checked{% endif %}> JSON Mode</label>
+    <div class="form-actions"><button type="submit">Save Settings</button></div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Stored Settings</h2>
   <table class="data-table">
     <thead>
       <tr><th>Key</th><th>Value</th></tr>

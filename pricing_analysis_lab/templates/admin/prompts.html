@@ -2,10 +2,15 @@
 {% block content %}
 <section class="panel">
   <h1>Prompt Manager</h1>
-  <ul class="simple-list">
-    {% for prompt in prompts %}
-    <li>{{ prompt.name }}<span class="muted"> {{ prompt.path }}</span></li>
-    {% endfor %}
-  </ul>
+  {% for prompt in prompts %}
+  <form method="post" action="{{ url_for('admin.save_prompt', prompt_name=prompt.name) }}" class="prompt-card">
+    <div class="prompt-header">
+      <strong>{{ prompt.name }}</strong>
+      <span class="muted">{{ prompt.path }}</span>
+    </div>
+    <textarea name="body" rows="8">{{ prompt_bodies[prompt.name] }}</textarea>
+    <div class="form-actions"><button type="submit">Save Prompt</button></div>
+  </form>
+  {% endfor %}
 </section>
 {% endblock %}

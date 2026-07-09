@@ -104,6 +104,80 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
+.flash-stack {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.flash {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #b8e0d3;
+  background: #ebfff8;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.form-grid label,
+.prompt-card {
+  display: grid;
+  gap: 8px;
+}
+
+.form-grid input,
+.prompt-card textarea,
+.form-actions button {
+  font: inherit;
+}
+
+.form-grid input,
+.prompt-card textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: white;
+}
+
+.prompt-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffaf0;
+  margin-bottom: 14px;
+}
+
+.prompt-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+}
+
+.form-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+.checkbox-row {
+  align-items: center;
+  grid-auto-flow: column;
+  justify-content: start;
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -138,6 +212,10 @@ body {
   }
 
   .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
     grid-template-columns: 1fr;
   }
 }

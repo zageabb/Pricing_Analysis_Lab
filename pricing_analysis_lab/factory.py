@@ -16,6 +16,7 @@ from .services.settings_store import ensure_default_settings
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config.from_object(Config)
+    app.secret_key = app.config["SECRET_KEY"]
 
     app.config["DATA_DIR"].mkdir(parents=True, exist_ok=True)
     app.config["UPLOAD_DIR"].mkdir(parents=True, exist_ok=True)

@@ -35,3 +35,16 @@ def ensure_default_prompts() -> None:
 
 def list_prompt_templates() -> list[PromptTemplate]:
     return PromptTemplate.query.order_by(PromptTemplate.name.asc()).all()
+
+
+def get_prompt_text(name: str) -> str:
+    template = PromptTemplate.query.filter_by(name=name).one()
+    return Path(template.path).read_text(encoding="utf-8")
+
+
+def save_prompt_text(name: str, body: str) -> PromptTemplate:
+    template = PromptTemplate.query.filter_by(name=name).one()
+    Path(template.path).write_text(body.rstrip() + "\n", encoding="utf-8")
+    db.session.add(template)
+    db.session.commit()
+    return template
