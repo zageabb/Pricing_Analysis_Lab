@@ -8,7 +8,9 @@ from .routes.admin import admin_bp
 from .routes.analysis import analysis_bp
 from .routes.api import api_bp
 from .routes.history import history_bp
+from .routes.json_api import json_api_bp
 from .routes.settings import settings_bp
+from .routes.workflow import workflow_bp
 from .services.prompt_store import ensure_default_prompts
 from .services.settings_store import ensure_default_settings
 
@@ -35,6 +37,8 @@ def create_app() -> Flask:
     app.register_blueprint(settings_bp, url_prefix="/settings")
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(history_bp, url_prefix="/history")
+    app.register_blueprint(workflow_bp, url_prefix="/workflow")
+    app.register_blueprint(json_api_bp, url_prefix="/json-api")
     app.register_blueprint(api_bp, url_prefix="/api")
 
     return app

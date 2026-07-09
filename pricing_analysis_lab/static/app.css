@@ -144,6 +144,16 @@ body {
   background: white;
 }
 
+.form-grid textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: white;
+  font: inherit;
+}
+
 .prompt-card {
   padding: 16px;
   border: 1px solid var(--line);
@@ -176,6 +186,16 @@ body {
   align-items: center;
   grid-auto-flow: column;
   justify-content: start;
+}
+
+.json-block {
+  margin: 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: #172026;
+  color: #edf6f3;
+  overflow: auto;
+  white-space: pre-wrap;
 }
 
 .stat-grid {

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>JSON API / Agent Input</h1>
+  <p class="lede">POST requests go to <code>/api/analyse</code>.</p>
+</section>
+
+<section class="panel">
+  <h2>Request Schema</h2>
+  <pre class="json-block">{{ request_schema | tojson(indent=2) }}</pre>
+</section>
+
+<section class="panel">
+  <h2>Response Schema</h2>
+  <pre class="json-block">{{ response_schema | tojson(indent=2) }}</pre>
+</section>
+{% endblock %}

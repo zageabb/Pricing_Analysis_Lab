@@ -25,4 +25,99 @@
     <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
   </div>
 </section>
+
+<section class="panel">
+  <h2>Step 1: Upload Spreadsheet</h2>
+  <form method="post" action="{{ url_for('analysis.upload') }}" enctype="multipart/form-data" class="form-grid">
+    <label class="form-actions">Spreadsheet<input type="file" name="spreadsheet" accept=".csv,.xlsx"></label>
+    <div class="form-actions"><button type="submit">Upload</button></div>
+  </form>
+</section>
+
+{% if selected_file_id %}
+<section class="panel">
+  <h2>Step 2-6: Configure and Run</h2>
+  <form method="post" action="{{ url_for('analysis.run') }}" class="form-grid">
+    <input type="hidden" name="file_id" value="{{ selected_file_id }}">
+    <label>Sheet Name<input type="text" name="sheet_name" value="{{ dataset_profile.sheet_name or '' }}"></label>
+    <label>Task
+      <input type="text" name="task" value="auto">
+    </label>
+    <label>Parameter Fields
+      <input type="text" name="parameter_fields" value="{{ dataset.columns | join(', ') if dataset else '' }}">
+    </label>
+    <label>Target Fields
+      <input type="text" name="target_fields" placeholder="price">
+    </label>
+    <label>Output Fields
+      <input type="text" name="output_fields" value="{{ dataset.columns | join(', ') if dataset else '' }}">
+    </label>
+    <label>Excluded Fields
+      <input type="text" name="excluded_fields" placeholder="notes,internal_id">
+    </label>
+    <label>Input Parameters JSON
+      <textarea name="input_parameters" rows="6">{}</textarea>
+    </label>
+    <label>Filter Parameters JSON
+      <textarea name="filter_parameters" rows="6">{}</textarea>
+    </label>
+    <label>Preferred Model<input type="text" name="preferred_model" value="auto"></label>
+    <label class="checkbox-row"><input type="checkbox" name="allow_llm_to_tune" checked> Allow LLM to tune</label>
+    <div class="form-actions"><button type="submit">Run Analysis</button></div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Data Preview</h2>
+  {% if dataset_profile.preview %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        {% for column in dataset_profile.columns %}
+        <th>{{ column.name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in dataset_profile.preview %}
+      <tr>
+        {% for column in dataset_profile.columns %}
+        <td>{{ row[column.name] }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No preview rows available.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Column Profile</h2>
+  <table class="data-table">
+    <thead>
+      <tr><th>Name</th><th>Type</th><th>Nulls</th><th>Unique</th><th>Examples</th></tr>
+    </thead>
+    <tbody>
+      {% for column in dataset_profile.columns %}
+      <tr>
+        <td>{{ column.name }}</td>
+        <td>{{ column.inferred_type }}</td>
+        <td>{{ column.null_count }}</td>
+        <td>{{ column.unique_count }}</td>
+        <td>{{ column.example_values | join(', ') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if result_json %}
+<section class="panel">
+  <h2>Results</h2>
+  <pre class="json-block">{{ result_json }}</pre>
+</section>
+{% endif %}
 {% endblock %}
