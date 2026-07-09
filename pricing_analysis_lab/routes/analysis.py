@@ -40,11 +40,13 @@ def home():
     file_id = request.args.get("file_id") or wizard_state["data_source"].get("file_id")
     dataset_profile = _empty_profile()
     dataset = None
+    available_columns: list[str] = []
     if file_id:
         try:
             sheet_name = request.args.get("sheet_name") or wizard_state["data_source"].get("sheet_name")
             dataset = load_request_dataset(file_id, sheet_name=sheet_name)
             dataset_profile = profile_dataset(dataset)
+            available_columns = [column["name"] for column in dataset_profile["columns"]]
         except Exception as exc:  # noqa: BLE001
             flash(str(exc))
 
@@ -59,6 +61,7 @@ def home():
         saved_configs=list_saved_configs(),
         wizard_state=wizard_state,
         selected_file_id=file_id,
+        available_columns=available_columns,
     )
 
 
@@ -111,6 +114,7 @@ def generate_plan():
     state = update_wizard_state_from_form(request.form)
     dataset_profile, plan_preview = build_plan_preview(state)
     set_plan_preview(plan_preview)
+    available_columns = [column["name"] for column in dataset_profile["columns"]]
     flash("Generated analysis plan.")
     return render_template(
         "analysis/home.html",
@@ -131,6 +135,7 @@ def generate_plan():
         saved_configs=list_saved_configs(),
         wizard_state=state,
         selected_file_id=state["data_source"]["file_id"],
+        available_columns=available_columns,
     )
 
 

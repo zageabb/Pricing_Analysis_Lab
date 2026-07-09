@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
+{% set parameter_rows = 6 %}
+{% set output_rows = 6 %}
+{% set target_rows = 3 %}
+{% set excluded_rows = 4 %}
 <section class="hero">
   <p class="eyebrow">Guided Pricing Workflow</p>
   <h1>Spreadsheet-driven pricing analysis for people and agents.</h1>
@@ -62,21 +66,118 @@
     <label>Task
       <input type="text" name="task" value="{{ wizard_state.task }}">
     </label>
-    <label>Parameter Fields
-      <input type="text" name="parameter_fields" value="{{ wizard_state.parameter_fields | join(', ') }}">
-    </label>
-    <label>Target Fields
-      <input type="text" name="target_fields" value="{{ wizard_state.target_fields | join(', ') }}" placeholder="price">
-    </label>
-    <label>Output Fields
-      <input type="text" name="output_fields" value="{{ wizard_state.output_fields | join(', ') }}">
-    </label>
-    <label>Excluded Fields
-      <input type="text" name="excluded_fields" value="{{ wizard_state.excluded_fields | join(', ') }}" placeholder="notes,internal_id">
-    </label>
-    <label>Input Parameters JSON
-      <textarea name="input_parameters" rows="6">{{ wizard_state.input_parameters | tojson(indent=2) }}</textarea>
-    </label>
+    <div class="form-span">
+      <h3 class="section-label">Parameter Fields and Input Values</h3>
+      <div class="table-scroll">
+        <table class="data-table selector-table">
+          <thead>
+            <tr><th>Use</th><th>Detected Field</th><th>Input Value</th></tr>
+          </thead>
+          <tbody>
+            {% for row_index in range(parameter_rows) %}
+            {% set selected_field = wizard_state.parameter_fields[row_index] if row_index < wizard_state.parameter_fields|length else '' %}
+            <tr>
+              <td>{{ row_index + 1 }}</td>
+              <td>
+                <select name="parameter_field_name">
+                  <option value="">Select field</option>
+                  {% for column in available_columns %}
+                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input
+                  type="text"
+                  name="parameter_field_value"
+                  value="{{ wizard_state.input_parameters.get(selected_field, '') if selected_field else '' }}"
+                  placeholder="Optional value"
+                >
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="form-span">
+      <h3 class="section-label">Target Fields</h3>
+      <div class="table-scroll">
+        <table class="data-table selector-table">
+          <thead>
+            <tr><th>Use</th><th>Detected Field</th></tr>
+          </thead>
+          <tbody>
+            {% for row_index in range(target_rows) %}
+            {% set selected_field = wizard_state.target_fields[row_index] if row_index < wizard_state.target_fields|length else '' %}
+            <tr>
+              <td>{{ row_index + 1 }}</td>
+              <td>
+                <select name="target_field_name">
+                  <option value="">Select field</option>
+                  {% for column in available_columns %}
+                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="form-span">
+      <h3 class="section-label">Output Fields</h3>
+      <div class="table-scroll">
+        <table class="data-table selector-table">
+          <thead>
+            <tr><th>Use</th><th>Detected Field</th></tr>
+          </thead>
+          <tbody>
+            {% for row_index in range(output_rows) %}
+            {% set selected_field = wizard_state.output_fields[row_index] if row_index < wizard_state.output_fields|length else '' %}
+            <tr>
+              <td>{{ row_index + 1 }}</td>
+              <td>
+                <select name="output_field_name">
+                  <option value="">Select field</option>
+                  {% for column in available_columns %}
+                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="form-span">
+      <h3 class="section-label">Excluded Fields</h3>
+      <div class="table-scroll">
+        <table class="data-table selector-table">
+          <thead>
+            <tr><th>Use</th><th>Detected Field</th></tr>
+          </thead>
+          <tbody>
+            {% for row_index in range(excluded_rows) %}
+            {% set selected_field = wizard_state.excluded_fields[row_index] if row_index < wizard_state.excluded_fields|length else '' %}
+            <tr>
+              <td>{{ row_index + 1 }}</td>
+              <td>
+                <select name="excluded_field_name">
+                  <option value="">Select field</option>
+                  {% for column in available_columns %}
+                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
     <label>Filter Parameters JSON
       <textarea name="filter_parameters" rows="6">{{ wizard_state.filter_parameters | tojson(indent=2) }}</textarea>
     </label>
@@ -153,24 +254,26 @@
 <section class="panel">
   <h2>Data Preview</h2>
   {% if dataset_profile.preview %}
-  <table class="data-table">
-    <thead>
-      <tr>
-        {% for column in dataset_profile.columns %}
-        <th>{{ column.name }}</th>
+  <div class="table-scroll preview-table-wrap">
+    <table class="data-table wide-table">
+      <thead>
+        <tr>
+          {% for column in dataset_profile.columns %}
+          <th>{{ column.name }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in dataset_profile.preview %}
+        <tr>
+          {% for column in dataset_profile.columns %}
+          <td>{{ row[column.name] }}</td>
+          {% endfor %}
+        </tr>
         {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in dataset_profile.preview %}
-      <tr>
-        {% for column in dataset_profile.columns %}
-        <td>{{ row[column.name] }}</td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
   {% else %}
   <p>No preview rows available.</p>
   {% endif %}
@@ -178,22 +281,24 @@
 
 <section class="panel">
   <h2>Column Profile</h2>
-  <table class="data-table">
-    <thead>
-      <tr><th>Name</th><th>Type</th><th>Nulls</th><th>Unique</th><th>Examples</th></tr>
-    </thead>
-    <tbody>
-      {% for column in dataset_profile.columns %}
-      <tr>
-        <td>{{ column.name }}</td>
-        <td>{{ column.inferred_type }}</td>
-        <td>{{ column.null_count }}</td>
-        <td>{{ column.unique_count }}</td>
-        <td>{{ column.example_values | join(', ') }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-scroll">
+    <table class="data-table wide-table">
+      <thead>
+        <tr><th>Name</th><th>Type</th><th>Nulls</th><th>Unique</th><th>Examples</th></tr>
+      </thead>
+      <tbody>
+        {% for column in dataset_profile.columns %}
+        <tr>
+          <td>{{ column.name }}</td>
+          <td>{{ column.inferred_type }}</td>
+          <td>{{ column.null_count }}</td>
+          <td>{{ column.unique_count }}</td>
+          <td>{{ column.example_values | join(', ') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 {% endif %}
 

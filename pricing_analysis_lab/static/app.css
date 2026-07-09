@@ -138,6 +138,14 @@ body {
   gap: 8px;
 }
 
+.form-span {
+  grid-column: 1 / -1;
+}
+
+.section-label {
+  margin: 0 0 10px;
+}
+
 .saved-configs {
   display: flex;
   flex-wrap: wrap;
@@ -154,7 +162,8 @@ body {
 
 .form-grid input,
 .prompt-card textarea,
-.form-actions button {
+.form-actions button,
+.selector-table select {
   font: inherit;
 }
 
@@ -175,6 +184,14 @@ body {
   border: 1px solid var(--line);
   background: white;
   font: inherit;
+}
+
+.selector-table select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: white;
 }
 
 .prompt-card {
@@ -219,6 +236,30 @@ body {
   color: #edf6f3;
   overflow: auto;
   white-space: pre-wrap;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.preview-table-wrap {
+  max-height: 360px;
+}
+
+.wide-table {
+  min-width: 100%;
+  width: max-content;
+  table-layout: fixed;
+}
+
+.wide-table th,
+.wide-table td {
+  min-width: 150px;
+  white-space: nowrap;
 }
 
 .stat-grid {

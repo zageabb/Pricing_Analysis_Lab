@@ -50,11 +50,12 @@ def update_wizard_state_from_form(form) -> dict[str, Any]:
     state["data_source"]["file_id"] = form.get("file_id", state["data_source"].get("file_id", "")).strip()
     state["data_source"]["sheet_name"] = form.get("sheet_name") or None
     state["task"] = form.get("task", state.get("task", "auto"))
-    state["parameter_fields"] = _split_csv_text(form.get("parameter_fields", ""))
-    state["target_fields"] = _split_csv_text(form.get("target_fields", ""))
-    state["output_fields"] = _split_csv_text(form.get("output_fields", ""))
-    state["excluded_fields"] = _split_csv_text(form.get("excluded_fields", ""))
-    state["input_parameters"] = _parse_json_object(form.get("input_parameters", "{}"))
+    parameter_fields, input_parameters = _parse_parameter_rows(form)
+    state["parameter_fields"] = parameter_fields or _split_csv_text(form.get("parameter_fields", ""))
+    state["target_fields"] = _parse_field_rows(form, "target_field_name") or _split_csv_text(form.get("target_fields", ""))
+    state["output_fields"] = _parse_field_rows(form, "output_field_name") or _split_csv_text(form.get("output_fields", ""))
+    state["excluded_fields"] = _parse_field_rows(form, "excluded_field_name") or _split_csv_text(form.get("excluded_fields", ""))
+    state["input_parameters"] = input_parameters or _parse_json_object(form.get("input_parameters", "{}"))
     state["filter_parameters"] = _parse_json_object(form.get("filter_parameters", "{}"))
     state["model_preferences"] = {
         "preferred_model": form.get("preferred_model", "auto"),
@@ -91,3 +92,49 @@ def _split_csv_text(value: str) -> list[str]:
 def _parse_json_object(value: str) -> dict[str, Any]:
     text = value.strip()
     return json.loads(text) if text else {}
+
+
+def _parse_field_rows(form, field_name: str) -> list[str]:
+    if not hasattr(form, "getlist"):
+        return []
+    values = [item.strip() for item in form.getlist(field_name) if item and item.strip()]
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
+
+
+def _parse_parameter_rows(form) -> tuple[list[str], dict[str, Any]]:
+    if not hasattr(form, "getlist"):
+        return [], {}
+    names = form.getlist("parameter_field_name")
+    values = form.getlist("parameter_field_value")
+    parameter_fields: list[str] = []
+    input_parameters: dict[str, Any] = {}
+    for name, value in zip(names, values):
+        clean_name = name.strip()
+        clean_value = value.strip()
+        if not clean_name:
+            continue
+        if clean_name not in parameter_fields:
+            parameter_fields.append(clean_name)
+        if clean_value:
+            input_parameters[clean_name] = _coerce_scalar(clean_value)
+    return parameter_fields, input_parameters
+
+
+def _coerce_scalar(value: str) -> Any:
+    lowered = value.lower()
+    if lowered in {"true", "false"}:
+        return lowered == "true"
+    if value.lstrip("+-").isdigit():
+        return int(value)
+    if value.count(".") == 1:
+        left, right = value.split(".", 1)
+        if left.lstrip("+-").isdigit() and right.isdigit():
+            return float(value)
+    return value
