@@ -62,6 +62,11 @@
   <form id="wizard-form" method="post" action="{{ url_for('analysis.update_wizard') }}" class="form-grid">
     <input type="hidden" name="file_id" value="{{ selected_file_id }}">
     <input type="hidden" name="next_step" value="{{ current_step + 1 if current_step < 7 else 7 }}">
+    <input type="hidden" name="parameter_fields" value="{{ wizard_state.parameter_fields | join(', ') }}">
+    <input type="hidden" name="target_fields" value="{{ wizard_state.target_fields | join(', ') }}">
+    <input type="hidden" name="output_fields" value="{{ wizard_state.output_fields | join(', ') }}">
+    <input type="hidden" name="excluded_fields" value="{{ wizard_state.excluded_fields | join(', ') }}">
+    <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
     <label>Sheet Name<input type="text" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or dataset_profile.sheet_name or '' }}"></label>
     <label>Task
       <input type="text" name="task" value="{{ wizard_state.task }}">
@@ -296,4 +301,44 @@
   <pre class="json-block">{{ result_json }}</pre>
 </section>
 {% endif %}
+<script>
+  (() => {
+    const wizardForm = document.getElementById("wizard-form");
+    if (!wizardForm) {
+      return;
+    }
+
+    const listFromFields = (selector) =>
+      Array.from(wizardForm.querySelectorAll(selector))
+        .map((field) => field.value.trim())
+        .filter(Boolean);
+
+    wizardForm.addEventListener("submit", () => {
+      const parameterNames = Array.from(wizardForm.querySelectorAll('select[name="parameter_field_name"]'));
+      const parameterValues = Array.from(wizardForm.querySelectorAll('input[name="parameter_field_value"]'));
+      const parameterFields = [];
+      const inputParameters = {};
+
+      parameterNames.forEach((field, index) => {
+        const name = field.value.trim();
+        const value = parameterValues[index]?.value.trim() || "";
+        if (!name) {
+          return;
+        }
+        if (!parameterFields.includes(name)) {
+          parameterFields.push(name);
+        }
+        if (value) {
+          inputParameters[name] = value;
+        }
+      });
+
+      wizardForm.elements.parameter_fields.value = parameterFields.join(", ");
+      wizardForm.elements.target_fields.value = listFromFields('select[name="target_field_name"]').join(", ");
+      wizardForm.elements.output_fields.value = listFromFields('select[name="output_field_name"]').join(", ");
+      wizardForm.elements.excluded_fields.value = listFromFields('select[name="excluded_field_name"]').join(", ");
+      wizardForm.elements.input_parameters.value = JSON.stringify(inputParameters);
+    });
+  })();
+</script>
 {% endblock %}

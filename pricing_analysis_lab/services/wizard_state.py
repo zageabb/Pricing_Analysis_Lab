@@ -51,11 +51,23 @@ def update_wizard_state_from_form(form) -> dict[str, Any]:
     state["data_source"]["sheet_name"] = form.get("sheet_name") or None
     state["task"] = form.get("task", state.get("task", "auto"))
     parameter_fields, input_parameters = _parse_parameter_rows(form)
-    state["parameter_fields"] = parameter_fields or _split_csv_text(form.get("parameter_fields", ""))
-    state["target_fields"] = _parse_field_rows(form, "target_field_name") or _split_csv_text(form.get("target_fields", ""))
-    state["output_fields"] = _parse_field_rows(form, "output_field_name") or _split_csv_text(form.get("output_fields", ""))
-    state["excluded_fields"] = _parse_field_rows(form, "excluded_field_name") or _split_csv_text(form.get("excluded_fields", ""))
-    state["input_parameters"] = input_parameters or _parse_json_object(form.get("input_parameters", "{}"))
+    state["parameter_fields"] = _prefer_longer_list(parameter_fields, _split_csv_text(form.get("parameter_fields", "")))
+    state["target_fields"] = _prefer_longer_list(
+        _parse_field_rows(form, "target_field_name"),
+        _split_csv_text(form.get("target_fields", "")),
+    )
+    state["output_fields"] = _prefer_longer_list(
+        _parse_field_rows(form, "output_field_name"),
+        _split_csv_text(form.get("output_fields", "")),
+    )
+    state["excluded_fields"] = _prefer_longer_list(
+        _parse_field_rows(form, "excluded_field_name"),
+        _split_csv_text(form.get("excluded_fields", "")),
+    )
+    state["input_parameters"] = _merge_input_parameters(
+        input_parameters,
+        _parse_json_object(form.get("input_parameters", "{}")),
+    )
     state["filter_parameters"] = _parse_json_object(form.get("filter_parameters", "{}"))
     state["model_preferences"] = {
         "preferred_model": form.get("preferred_model", "auto"),
@@ -138,3 +150,13 @@ def _coerce_scalar(value: str) -> Any:
         if left.lstrip("+-").isdigit() and right.isdigit():
             return float(value)
     return value
+
+
+def _prefer_longer_list(primary: list[str], fallback: list[str]) -> list[str]:
+    return primary if len(primary) >= len(fallback) else fallback
+
+
+def _merge_input_parameters(primary: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(fallback)
+    merged.update(primary)
+    return merged

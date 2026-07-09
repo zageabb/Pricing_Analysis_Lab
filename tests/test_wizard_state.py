@@ -65,3 +65,27 @@ def test_secondary_actions_submit_live_wizard_form(app):
     assert 'formaction="/wizard/save-config"' in html
     assert 'formaction="/wizard/plan"' in html
     assert 'formaction="/run"' in html
+
+
+def test_update_wizard_state_prefers_richer_hidden_field_snapshots(app):
+    with app.test_request_context():
+        form = MultiDict(
+            [
+                ("file_id", "pricing.csv"),
+                ("task", "auto"),
+                ("target_field_name", "price"),
+                ("target_fields", "price, margin"),
+                ("output_field_name", "sku"),
+                ("output_fields", "sku, price, margin"),
+                ("parameter_field_name", "supplier"),
+                ("parameter_field_value", "Acme"),
+                ("parameter_fields", "supplier, quantity"),
+                ("input_parameters", '{"supplier": "Acme", "quantity": 12}'),
+                ("preferred_model", "auto"),
+            ]
+        )
+        state = update_wizard_state_from_form(form)
+        assert state["target_fields"] == ["price", "margin"]
+        assert state["output_fields"] == ["sku", "price", "margin"]
+        assert state["parameter_fields"] == ["supplier", "quantity"]
+        assert state["input_parameters"] == {"supplier": "Acme", "quantity": 12}
