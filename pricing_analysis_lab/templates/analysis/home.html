@@ -16,4 +16,13 @@
     {% endfor %}
   </ol>
 </section>
+
+<section class="panel">
+  <h2>Dataset Summary Surface</h2>
+  <div class="stat-grid">
+    <div><strong>Rows</strong><span>{{ dataset_profile.row_count }}</span></div>
+    <div><strong>Columns</strong><span>{{ dataset_profile.column_count }}</span></div>
+    <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
+  </div>
+</section>
 {% endblock %}
