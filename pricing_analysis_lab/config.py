@@ -21,7 +21,7 @@ class Config:
 
     APP_NAME = "Pricing Analysis Lab"
     HOST = os.environ.get("HOST", "127.0.0.1")
-    PORT = int(os.environ.get("PORT", "5060"))
+    PORT = int(os.environ.get("PORT", "5052"))
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 
     DATA_DIR = Path(os.environ.get("DATA_DIR", DATA_DIR))

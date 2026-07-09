@@ -181,7 +181,7 @@ This is intended to give downstream agents a readable summary alongside structur
 ## Example Curl
 
 ```bash
-curl -X POST http://127.0.0.1:5060/api/analyse \
+curl -X POST http://127.0.0.1:5052/api/analyse \
   -H "Content-Type: application/json" \
   -d '{
     "data_source": {"type": "uploaded_file", "file_id": "pricing.csv"},

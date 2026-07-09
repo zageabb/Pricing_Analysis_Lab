@@ -51,7 +51,7 @@ python3 -m pip install -r requirements.txt
 python3 app.py
 ```
 
-Open [http://127.0.0.1:5060](http://127.0.0.1:5060).
+Open [http://127.0.0.1:5052](http://127.0.0.1:5052).
 
 ## Main Pages
 

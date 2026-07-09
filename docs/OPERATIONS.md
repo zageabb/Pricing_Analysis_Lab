@@ -12,7 +12,7 @@ python3 app.py
 Default local URL:
 
 ```text
-http://127.0.0.1:5060
+http://127.0.0.1:5052
 ```
 
 ## Runtime Configuration
