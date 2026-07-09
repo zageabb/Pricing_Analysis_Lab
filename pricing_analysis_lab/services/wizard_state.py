@@ -11,7 +11,7 @@ WIZARD_SESSION_KEY = "analysis_wizard_state"
 
 def default_wizard_state() -> dict[str, Any]:
     return {
-        "data_source": {"type": "uploaded_file", "file_id": "", "sheet_name": None},
+        "data_source": {"type": "uploaded_file", "file_id": "", "sheet_name": None, "header_row": 1},
         "task": "auto",
         "parameter_fields": [],
         "input_parameters": {},
@@ -54,6 +54,10 @@ def update_wizard_state_from_form(form) -> dict[str, Any]:
     state = get_wizard_state()
     state["data_source"]["file_id"] = form.get("file_id", state["data_source"].get("file_id", "")).strip()
     state["data_source"]["sheet_name"] = form.get("sheet_name") or None
+    state["data_source"]["header_row"] = _parse_header_row(
+        form.get("header_row"),
+        state["data_source"].get("header_row", 1),
+    )
     state["task"] = form.get("task", state.get("task", "auto"))
     parameter_fields, input_parameters = _parse_parameter_rows(form)
     state["parameter_fields"] = _prefer_richest_list(
@@ -204,6 +208,13 @@ def _normalize_field_name(value: Any) -> str:
 
 def _normalize_wizard_state(state: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(state)
+    normalized["data_source"] = {
+        **state.get("data_source", {}),
+        "header_row": _parse_header_row(
+            state.get("data_source", {}).get("header_row"),
+            1,
+        ),
+    }
     normalized["parameter_fields"] = [_normalize_field_name(item) for item in state.get("parameter_fields", []) if _normalize_field_name(item)]
     normalized["target_fields"] = [_normalize_field_name(item) for item in state.get("target_fields", []) if _normalize_field_name(item)]
     normalized["output_fields"] = [_normalize_field_name(item) for item in state.get("output_fields", []) if _normalize_field_name(item)]
@@ -214,3 +225,13 @@ def _normalize_wizard_state(state: dict[str, Any]) -> dict[str, Any]:
         if _normalize_field_name(key)
     }
     return normalized
+
+
+def _parse_header_row(value: Any, fallback: int) -> int:
+    if value in (None, ""):
+        return max(1, int(fallback))
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return max(1, int(fallback))
+    return max(1, parsed)

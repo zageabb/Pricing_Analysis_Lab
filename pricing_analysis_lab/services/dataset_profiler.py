@@ -22,6 +22,7 @@ def profile_dataset(dataset: SpreadsheetData) -> dict[str, Any]:
     return {
         "file_name": dataset.file_name,
         "sheet_name": dataset.sheet_name,
+        "header_row": dataset.header_row,
         "row_count": dataset.row_count,
         "column_count": dataset.column_count,
         "sheet_names": dataset.sheet_names,

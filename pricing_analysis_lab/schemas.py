@@ -19,6 +19,7 @@ class DataSourceConfig(BaseModel):
     type: Literal["uploaded_file"]
     file_id: str = Field(min_length=1)
     sheet_name: str | None = None
+    header_row: int = Field(default=1, ge=1)
 
 
 class ModelPreferences(BaseModel):

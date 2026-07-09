@@ -24,6 +24,7 @@ def test_update_wizard_state_from_selector_rows(app):
         form = MultiDict(
             [
                 ("file_id", "pricing.csv"),
+                ("header_row", "2"),
                 ("task", "auto"),
                 ("parameter_field_name", "supplier"),
                 ("parameter_field_value", "Acme"),
@@ -34,6 +35,7 @@ def test_update_wizard_state_from_selector_rows(app):
             ]
         )
         state = update_wizard_state_from_form(form)
+        assert state["data_source"]["header_row"] == 2
         assert state["parameter_fields"] == ["supplier"]
         assert state["input_parameters"] == {"supplier": "Acme"}
         assert state["output_fields"] == ["price"]

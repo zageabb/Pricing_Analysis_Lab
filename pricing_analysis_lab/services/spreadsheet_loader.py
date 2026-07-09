@@ -14,6 +14,7 @@ class SpreadsheetData:
     file_name: str
     source_path: Path | None
     sheet_name: str | None
+    header_row: int
     sheet_names: list[str]
     columns: list[str]
     rows: list[dict[str, Any]]
@@ -30,37 +31,40 @@ class SpreadsheetData:
         return self.rows[:limit]
 
 
-def load_spreadsheet(path: str | Path, sheet_name: str | None = None) -> SpreadsheetData:
+def load_spreadsheet(
+    path: str | Path,
+    sheet_name: str | None = None,
+    header_row: int = 1,
+) -> SpreadsheetData:
     source_path = Path(path)
     suffix = source_path.suffix.lower()
+    if header_row < 1:
+        raise ValueError("Header row must be 1 or greater.")
     if suffix == ".csv":
-        return _load_csv(source_path)
+        return _load_csv(source_path, header_row=header_row)
     if suffix == ".xlsx":
-        return _load_xlsx(source_path, sheet_name=sheet_name)
+        return _load_xlsx(source_path, sheet_name=sheet_name, header_row=header_row)
     raise ValueError(f"Unsupported file type: {suffix}")
 
 
-def _load_csv(path: Path) -> SpreadsheetData:
+def _load_csv(path: Path, header_row: int) -> SpreadsheetData:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.reader(handle)
         rows = list(reader)
 
-    if not rows:
-        raise ValueError("Spreadsheet is empty.")
-
-    columns = _normalize_columns(rows[0])
-    records = _rows_to_records(columns, rows[1:])
+    columns, records = _extract_records(rows, header_row=header_row)
     return SpreadsheetData(
         file_name=path.name,
         source_path=path,
         sheet_name=None,
+        header_row=header_row,
         sheet_names=[],
         columns=columns,
         rows=records,
     )
 
 
-def _load_xlsx(path: Path, sheet_name: str | None = None) -> SpreadsheetData:
+def _load_xlsx(path: Path, sheet_name: str | None = None, header_row: int = 1) -> SpreadsheetData:
     workbook = load_workbook(path, data_only=True)
     sheet_names = workbook.sheetnames
     active_sheet_name = sheet_name or sheet_names[0]
@@ -70,19 +74,27 @@ def _load_xlsx(path: Path, sheet_name: str | None = None) -> SpreadsheetData:
 
     worksheet = workbook[active_sheet_name]
     raw_rows = [list(row) for row in worksheet.iter_rows(values_only=True)]
-    if not raw_rows:
-        raise ValueError("Spreadsheet is empty.")
-
-    columns = _normalize_columns(raw_rows[0])
-    records = _rows_to_records(columns, raw_rows[1:])
+    columns, records = _extract_records(raw_rows, header_row=header_row)
     return SpreadsheetData(
         file_name=path.name,
         source_path=path,
         sheet_name=active_sheet_name,
+        header_row=header_row,
         sheet_names=sheet_names,
         columns=columns,
         rows=records,
     )
+
+
+def _extract_records(raw_rows: list[list[Any]], header_row: int) -> tuple[list[str], list[dict[str, Any]]]:
+    if not raw_rows:
+        raise ValueError("Spreadsheet is empty.")
+    header_index = header_row - 1
+    if header_index >= len(raw_rows):
+        raise ValueError(f"Header row {header_row} is beyond the end of the spreadsheet.")
+    columns = _normalize_columns(raw_rows[header_index])
+    records = _rows_to_records(columns, raw_rows[header_index + 1 :])
+    return columns, records
 
 
 def _normalize_columns(header_row: list[Any]) -> list[str]:

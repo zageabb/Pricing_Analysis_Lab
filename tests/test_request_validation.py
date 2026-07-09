@@ -6,7 +6,7 @@ from pricing_analysis_lab.services.request_validator import collect_validation_e
 
 def test_valid_analysis_request_parses():
     payload = {
-        "data_source": {"type": "uploaded_file", "file_id": "example.xlsx", "sheet_name": "Sheet1"},
+        "data_source": {"type": "uploaded_file", "file_id": "example.xlsx", "sheet_name": "Sheet1", "header_row": 2},
         "task": "auto",
         "parameter_fields": ["supplier", "category", "region", "quantity"],
         "input_parameters": {"category": "Transformer", "region": "UK", "quantity": 10},
@@ -20,6 +20,7 @@ def test_valid_analysis_request_parses():
     model = validate_analysis_request(payload)
     assert isinstance(model, AnalysisRequest)
     assert model.data_source.file_id == "example.xlsx"
+    assert model.data_source.header_row == 2
     assert model.target_fields == ["price"]
 
 

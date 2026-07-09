@@ -48,6 +48,38 @@ def test_load_xlsx_with_sheet_selection(tmp_path: Path):
     assert profile["columns"][1]["inferred_type"] == "numeric"
 
 
+def test_load_csv_with_custom_header_row(tmp_path: Path):
+    csv_path = tmp_path / "pricing.csv"
+    csv_path.write_text(
+        "notes,notes,notes\n"
+        "supplier,category,price\n"
+        "Acme,Transformer,100\n",
+        encoding="utf-8",
+    )
+
+    dataset = load_spreadsheet(csv_path, header_row=2)
+
+    assert dataset.header_row == 2
+    assert dataset.columns == ["supplier", "category", "price"]
+    assert dataset.rows == [{"supplier": "Acme", "category": "Transformer", "price": 100}]
+
+
+def test_load_xlsx_with_custom_header_row(tmp_path: Path):
+    xlsx_path = tmp_path / "pricing.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["preface", "preface", "preface"])
+    sheet.append(["supplier", "lead_time", "price"])
+    sheet.append(["Bravo", 14, 120])
+    workbook.save(xlsx_path)
+
+    dataset = load_spreadsheet(xlsx_path, header_row=2)
+
+    assert dataset.header_row == 2
+    assert dataset.columns == ["supplier", "lead_time", "price"]
+    assert dataset.rows == [{"supplier": "Bravo", "lead_time": 14, "price": 120}]
+
+
 def test_invalid_sheet_name_raises(tmp_path: Path):
     xlsx_path = tmp_path / "pricing.xlsx"
     workbook = Workbook()
@@ -60,3 +92,15 @@ def test_invalid_sheet_name_raises(tmp_path: Path):
         assert "Missing" in str(exc)
     else:
         raise AssertionError("Expected invalid sheet name to raise ValueError")
+
+
+def test_header_row_beyond_sheet_raises(tmp_path: Path):
+    csv_path = tmp_path / "pricing.csv"
+    csv_path.write_text("supplier,price\nAcme,100\n", encoding="utf-8")
+
+    try:
+        load_spreadsheet(csv_path, header_row=5)
+    except ValueError as exc:
+        assert "Header row 5" in str(exc)
+    else:
+        raise AssertionError("Expected invalid header row to raise ValueError")

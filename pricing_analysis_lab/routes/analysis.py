@@ -44,7 +44,8 @@ def home():
     if file_id:
         try:
             sheet_name = request.args.get("sheet_name") or wizard_state["data_source"].get("sheet_name")
-            dataset = load_request_dataset(file_id, sheet_name=sheet_name)
+            header_row = request.args.get("header_row", type=int) or wizard_state["data_source"].get("header_row", 1)
+            dataset = load_request_dataset(file_id, sheet_name=sheet_name, header_row=header_row)
             dataset_profile = profile_dataset(dataset)
             available_columns = [column["name"] for column in dataset_profile["columns"]]
         except Exception as exc:  # noqa: BLE001
@@ -74,6 +75,7 @@ def upload():
     record = save_uploaded_dataset(file_storage)
     state = get_wizard_state()
     state["data_source"]["file_id"] = record.file_name
+    state["data_source"]["header_row"] = 1
     save_wizard_state(state)
     return redirect(url_for("analysis.home", file_id=record.file_name, step=2))
 
@@ -82,7 +84,14 @@ def upload():
 def update_wizard():
     state = update_wizard_state_from_form(request.form)
     next_step = request.form.get("next_step", type=int) or 2
-    return redirect(url_for("analysis.home", file_id=state["data_source"]["file_id"], step=next_step))
+    return redirect(
+        url_for(
+            "analysis.home",
+            file_id=state["data_source"]["file_id"],
+            step=next_step,
+            header_row=state["data_source"].get("header_row", 1),
+        )
+    )
 
 
 @analysis_bp.post("/wizard/reset")
@@ -98,7 +107,14 @@ def save_config():
     config_name = request.form.get("config_name", "")
     save_analysis_config(config_name, state)
     flash(f"Saved analysis config: {config_name}")
-    return redirect(url_for("analysis.home", file_id=state["data_source"]["file_id"], step=3))
+    return redirect(
+        url_for(
+            "analysis.home",
+            file_id=state["data_source"]["file_id"],
+            step=3,
+            header_row=state["data_source"].get("header_row", 1),
+        )
+    )
 
 
 @analysis_bp.post("/wizard/load-config/<int:config_id>")
@@ -106,7 +122,14 @@ def load_config(config_id: int):
     state = load_analysis_config(config_id)
     save_wizard_state(state)
     flash("Loaded saved analysis config.")
-    return redirect(url_for("analysis.home", file_id=state["data_source"]["file_id"], step=2))
+    return redirect(
+        url_for(
+            "analysis.home",
+            file_id=state["data_source"]["file_id"],
+            step=2,
+            header_row=state["data_source"].get("header_row", 1),
+        )
+    )
 
 
 @analysis_bp.post("/wizard/plan")
@@ -129,7 +152,11 @@ def generate_plan():
         ],
         current_step=5,
         dataset_profile=dataset_profile,
-        dataset=load_request_dataset(state["data_source"]["file_id"], sheet_name=state["data_source"].get("sheet_name")),
+        dataset=load_request_dataset(
+            state["data_source"]["file_id"],
+            sheet_name=state["data_source"].get("sheet_name"),
+            header_row=state["data_source"].get("header_row", 1),
+        ),
         result_json=json.dumps(get_result_preview(), indent=2) if get_result_preview() else None,
         plan_preview=plan_preview,
         saved_configs=list_saved_configs(),
@@ -149,6 +176,7 @@ def run():
             "analysis.home",
             file_id=state["data_source"]["file_id"],
             step=7,
+            header_row=state["data_source"].get("header_row", 1),
         )
     )
 
@@ -159,6 +187,7 @@ def _empty_profile() -> dict:
             file_name="No dataset loaded",
             source_path=None,
             sheet_name=None,
+            header_row=1,
             sheet_names=[],
             columns=[],
             rows=[],
