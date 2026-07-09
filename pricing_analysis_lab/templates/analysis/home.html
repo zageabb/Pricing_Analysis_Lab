@@ -62,10 +62,10 @@
   <form id="wizard-form" method="post" action="{{ url_for('analysis.update_wizard') }}" class="form-grid">
     <input type="hidden" name="file_id" value="{{ selected_file_id }}">
     <input type="hidden" name="next_step" value="{{ current_step + 1 if current_step < 7 else 7 }}">
-    <input type="hidden" name="parameter_fields" value="{{ wizard_state.parameter_fields | join(', ') }}">
-    <input type="hidden" name="target_fields" value="{{ wizard_state.target_fields | join(', ') }}">
-    <input type="hidden" name="output_fields" value="{{ wizard_state.output_fields | join(', ') }}">
-    <input type="hidden" name="excluded_fields" value="{{ wizard_state.excluded_fields | join(', ') }}">
+    <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
+    <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
+    <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>
+    <input type="hidden" name="excluded_fields" value='{{ wizard_state.excluded_fields | tojson }}'>
     <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
     <label>Sheet Name<input type="text" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or dataset_profile.sheet_name or '' }}"></label>
     <label>Task
@@ -333,10 +333,10 @@
         }
       });
 
-      wizardForm.elements.parameter_fields.value = parameterFields.join(", ");
-      wizardForm.elements.target_fields.value = listFromFields('select[name="target_field_name"]').join(", ");
-      wizardForm.elements.output_fields.value = listFromFields('select[name="output_field_name"]').join(", ");
-      wizardForm.elements.excluded_fields.value = listFromFields('select[name="excluded_field_name"]').join(", ");
+      wizardForm.elements.parameter_fields.value = JSON.stringify(parameterFields);
+      wizardForm.elements.target_fields.value = JSON.stringify(listFromFields('select[name="target_field_name"]'));
+      wizardForm.elements.output_fields.value = JSON.stringify(listFromFields('select[name="output_field_name"]'));
+      wizardForm.elements.excluded_fields.value = JSON.stringify(listFromFields('select[name="excluded_field_name"]'));
       wizardForm.elements.input_parameters.value = JSON.stringify(inputParameters);
     });
   })();

@@ -29,6 +29,11 @@ def get_wizard_state() -> dict[str, Any]:
     if not isinstance(state, dict):
         state = default_wizard_state()
         session[WIZARD_SESSION_KEY] = state
+    normalized_state = _normalize_wizard_state(state)
+    if normalized_state != state:
+        session[WIZARD_SESSION_KEY] = normalized_state
+        session.modified = True
+        state = normalized_state
     return state
 
 
@@ -51,22 +56,30 @@ def update_wizard_state_from_form(form) -> dict[str, Any]:
     state["data_source"]["sheet_name"] = form.get("sheet_name") or None
     state["task"] = form.get("task", state.get("task", "auto"))
     parameter_fields, input_parameters = _parse_parameter_rows(form)
-    state["parameter_fields"] = _prefer_longer_list(parameter_fields, _split_csv_text(form.get("parameter_fields", "")))
-    state["target_fields"] = _prefer_longer_list(
+    state["parameter_fields"] = _prefer_richest_list(
+        parameter_fields,
+        _parse_string_list(form.get("parameter_fields", "")),
+        state.get("parameter_fields", []),
+    )
+    state["target_fields"] = _prefer_richest_list(
         _parse_field_rows(form, "target_field_name"),
-        _split_csv_text(form.get("target_fields", "")),
+        _parse_string_list(form.get("target_fields", "")),
+        state.get("target_fields", []),
     )
-    state["output_fields"] = _prefer_longer_list(
+    state["output_fields"] = _prefer_richest_list(
         _parse_field_rows(form, "output_field_name"),
-        _split_csv_text(form.get("output_fields", "")),
+        _parse_string_list(form.get("output_fields", "")),
+        state.get("output_fields", []),
     )
-    state["excluded_fields"] = _prefer_longer_list(
+    state["excluded_fields"] = _prefer_richest_list(
         _parse_field_rows(form, "excluded_field_name"),
-        _split_csv_text(form.get("excluded_fields", "")),
+        _parse_string_list(form.get("excluded_fields", "")),
+        state.get("excluded_fields", []),
     )
     state["input_parameters"] = _merge_input_parameters(
         input_parameters,
         _parse_json_object(form.get("input_parameters", "{}")),
+        state.get("input_parameters", {}),
     )
     state["filter_parameters"] = _parse_json_object(form.get("filter_parameters", "{}"))
     state["model_preferences"] = {
@@ -101,6 +114,24 @@ def _split_csv_text(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _parse_string_list(value: str) -> list[str]:
+    text = value.strip()
+    if not text:
+        return []
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return _split_csv_text(text)
+    if not isinstance(parsed, list):
+        return _split_csv_text(text)
+    normalized: list[str] = []
+    for item in parsed:
+        item_text = _normalize_field_name(item)
+        if item_text:
+            normalized.append(item_text)
+    return normalized
+
+
 def _parse_json_object(value: str) -> dict[str, Any]:
     text = value.strip()
     return json.loads(text) if text else {}
@@ -109,7 +140,7 @@ def _parse_json_object(value: str) -> dict[str, Any]:
 def _parse_field_rows(form, field_name: str) -> list[str]:
     if not hasattr(form, "getlist"):
         return []
-    values = [item.strip() for item in form.getlist(field_name) if item and item.strip()]
+    values = [_normalize_field_name(item) for item in form.getlist(field_name) if item and str(item).strip()]
     deduped: list[str] = []
     seen: set[str] = set()
     for value in values:
@@ -128,7 +159,7 @@ def _parse_parameter_rows(form) -> tuple[list[str], dict[str, Any]]:
     parameter_fields: list[str] = []
     input_parameters: dict[str, Any] = {}
     for name, value in zip(names, values):
-        clean_name = name.strip()
+        clean_name = _normalize_field_name(name)
         clean_value = value.strip()
         if not clean_name:
             continue
@@ -156,7 +187,30 @@ def _prefer_longer_list(primary: list[str], fallback: list[str]) -> list[str]:
     return primary if len(primary) >= len(fallback) else fallback
 
 
-def _merge_input_parameters(primary: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
-    merged = dict(fallback)
+def _prefer_richest_list(primary: list[str], fallback: list[str], current: list[str]) -> list[str]:
+    return _prefer_longer_list(_prefer_longer_list(primary, fallback), [_normalize_field_name(item) for item in current if _normalize_field_name(item)])
+
+
+def _merge_input_parameters(primary: dict[str, Any], fallback: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
+    merged = {_normalize_field_name(key): value for key, value in current.items() if _normalize_field_name(key)}
+    merged.update({_normalize_field_name(key): value for key, value in fallback.items() if _normalize_field_name(key)})
     merged.update(primary)
     return merged
+
+
+def _normalize_field_name(value: Any) -> str:
+    return str(value).replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def _normalize_wizard_state(state: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(state)
+    normalized["parameter_fields"] = [_normalize_field_name(item) for item in state.get("parameter_fields", []) if _normalize_field_name(item)]
+    normalized["target_fields"] = [_normalize_field_name(item) for item in state.get("target_fields", []) if _normalize_field_name(item)]
+    normalized["output_fields"] = [_normalize_field_name(item) for item in state.get("output_fields", []) if _normalize_field_name(item)]
+    normalized["excluded_fields"] = [_normalize_field_name(item) for item in state.get("excluded_fields", []) if _normalize_field_name(item)]
+    normalized["input_parameters"] = {
+        _normalize_field_name(key): value
+        for key, value in state.get("input_parameters", {}).items()
+        if _normalize_field_name(key)
+    }
+    return normalized
