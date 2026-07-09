@@ -6,6 +6,8 @@ Pricing Analysis Lab is a local Flask application for spreadsheet-driven pricing
 
 - Upload and inspect `CSV` and `XLSX` pricing datasets
 - Profile columns for type, null count, unique count, and example values
+- Walk through a multi-step analysis wizard instead of a single flat form
+- Save and reload reusable analysis configurations
 - Accept structured analysis requests through the UI or `POST /api/analyse`
 - Auto-select an analysis plan
 - Run deterministic analysis functions from a safe registry
@@ -16,6 +18,10 @@ Pricing Analysis Lab is a local Flask application for spreadsheet-driven pricing
 
 - `random_forest_regression`
 - `random_forest_classification`
+- `linear_regression`
+- `gradient_boosting_regression`
+- `gradient_boosting_classification`
+- `nearest_neighbor_similarity`
 - `descriptive_statistics`
 - `filtered_search`
 
@@ -81,8 +87,8 @@ Current provider adapter support:
 
 1. Open the `Analysis` page.
 2. Upload a `.csv` or `.xlsx` file.
-3. Review the detected profile and preview.
-4. Enter target fields, parameter fields, and input parameters.
+3. Move through the wizard steps for field selection, parameters, plan generation, review, and execution.
+4. Optionally save the current setup as a reusable analysis configuration.
 5. Run analysis and inspect the JSON result block.
 
 ## API Usage
@@ -173,10 +179,15 @@ Current coverage includes:
 - XLSX loading
 - column profiling
 - JSON request validation
+- saved analysis configuration persistence
+- orchestrator model selection rules
 - prompt loading
 - settings loading
 - Random Forest regression
 - Random Forest classification
+- linear regression
+- gradient boosting regression
+- nearest-neighbour similarity
 - descriptive statistics fallback
 - invalid target field handling
 - insufficient row handling
@@ -192,7 +203,7 @@ Current coverage includes:
 
 ## Known Limitations
 
-- The main UI is functional but still compact; it is not yet a fully split multi-page wizard.
+- The wizard is server-rendered and session-backed rather than a richer client-side application.
 - Prompt editing is file-backed and simple rather than versioned.
 - LLM-assisted planning currently uses deterministic heuristics first; provider-backed prompt execution is scaffolded but not yet deeply integrated into orchestration decisions.
 - Mermaid workflow is currently displayed as source text rather than a bundled offline renderer.

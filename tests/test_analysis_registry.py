@@ -108,6 +108,61 @@ def test_random_forest_classification(tmp_path: Path):
     assert result["predictions"][0]["predicted_class"]
 
 
+def test_linear_regression(tmp_path: Path):
+    dataset = load_spreadsheet(_write_regression_csv(tmp_path / "linear.csv"))
+    request_model = validate_analysis_request(
+        {
+            "data_source": {"type": "uploaded_file", "file_id": "linear.csv"},
+            "task": "regression",
+            "parameter_fields": ["quantity"],
+            "input_parameters": {"quantity": 18},
+            "target_fields": ["price"],
+            "model_preferences": {"preferred_model": "linear_regression", "allow_llm_to_tune": True},
+        }
+    )
+    plan = AnalysisPlan(selected_function="linear_regression", reason="simple baseline", target_field="price")
+    result = run_analysis_function(request_model, dataset, plan)
+    assert result["analysis_type"] == "linear_regression"
+    assert "r2" in result["statistics"]
+    assert result["predictions"]
+
+
+def test_gradient_boosting_regression(tmp_path: Path):
+    dataset = load_spreadsheet(_write_regression_csv(tmp_path / "boost.csv"))
+    request_model = validate_analysis_request(
+        {
+            "data_source": {"type": "uploaded_file", "file_id": "boost.csv"},
+            "task": "regression",
+            "parameter_fields": ["supplier", "category", "region", "quantity"],
+            "input_parameters": {"supplier": "Delta", "category": "Transformer", "region": "FR", "quantity": 36},
+            "target_fields": ["price"],
+            "model_preferences": {"preferred_model": "gradient_boosting", "allow_llm_to_tune": True},
+        }
+    )
+    plan = AnalysisPlan(selected_function="gradient_boosting_regression", reason="boosting", target_field="price")
+    result = run_analysis_function(request_model, dataset, plan)
+    assert result["analysis_type"] == "gradient_boosting_regression"
+    assert result["feature_importance"]
+
+
+def test_nearest_neighbor_similarity(tmp_path: Path):
+    dataset = load_spreadsheet(_write_regression_csv(tmp_path / "similarity.csv"))
+    request_model = validate_analysis_request(
+        {
+            "data_source": {"type": "uploaded_file", "file_id": "similarity.csv"},
+            "task": "similarity/search",
+            "parameter_fields": ["supplier", "category", "region", "quantity"],
+            "input_parameters": {"supplier": "Acme", "category": "Transformer", "region": "UK", "quantity": 11},
+            "output_fields": ["supplier", "category", "price"],
+        }
+    )
+    plan = AnalysisPlan(selected_function="nearest_neighbor_similarity", reason="similarity")
+    result = run_analysis_function(request_model, dataset, plan)
+    assert result["analysis_type"] == "nearest_neighbor_similarity"
+    assert result["predictions"]
+    assert "similarity_distance" in result["predictions"][0]
+
+
 def test_invalid_target_field(tmp_path: Path):
     dataset = load_spreadsheet(_write_regression_csv(tmp_path / "regression.csv"))
     request_model = validate_analysis_request(

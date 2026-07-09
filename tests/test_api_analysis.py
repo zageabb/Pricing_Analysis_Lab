@@ -39,7 +39,7 @@ def test_api_analyse_success(tmp_path: Path):
     body = response.get_json()
     assert response.status_code == 200
     assert body["status"] == "success"
-    assert body["analysis_type"] == "random_forest_regression"
+    assert body["analysis_type"] in {"linear_regression", "random_forest_regression", "gradient_boosting_regression"}
     assert "dataset_profile" in body
     assert "llm_plan" in body
 

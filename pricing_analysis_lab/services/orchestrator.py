@@ -9,6 +9,8 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
     target_field = request_model.target_fields[0] if request_model.target_fields else None
     columns = {column["name"]: column for column in dataset_profile.get("columns", [])}
     row_count = dataset_profile.get("row_count", 0)
+    preferred_model = request_model.model_preferences.preferred_model.lower().strip()
+    preferred_function = _preferred_function_for_request(request_model.task, preferred_model)
 
     if request_model.task == "data summary/statistical analysis":
         return AnalysisPlan(
@@ -17,8 +19,13 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
         )
 
     if request_model.task == "similarity/search":
+        if preferred_function == "filtered_search":
+            return AnalysisPlan(
+                selected_function="filtered_search",
+                reason="The preferred model requested a direct filtered search.",
+            )
         return AnalysisPlan(
-            selected_function="filtered_search",
+            selected_function="nearest_neighbor_similarity" if request_model.input_parameters else "filtered_search",
             reason="The request explicitly asked for search-style matching.",
         )
 
@@ -28,8 +35,11 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
             column["name"] for column in dataset_profile["columns"] if column["name"] != target_field
         ]
         if request_model.task == "classification" or inferred_type in {"category", "text"}:
+            selected_function = preferred_function or (
+                "gradient_boosting_classification" if row_count >= 40 else "random_forest_classification"
+            )
             return AnalysisPlan(
-                selected_function="random_forest_classification",
+                selected_function=selected_function,
                 reason="The target field looks categorical and there are enough rows for supervised classification.",
                 target_field=target_field,
                 feature_fields=feature_fields,
@@ -42,8 +52,9 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
                 },
             )
         if request_model.task in {"regression", "prediction", "auto"} and inferred_type == "numeric":
+            selected_function = preferred_function or _auto_regression_function(row_count)
             return AnalysisPlan(
-                selected_function="random_forest_regression",
+                selected_function=selected_function,
                 reason="The target field is numeric and there are enough rows for supervised regression.",
                 target_field=target_field,
                 feature_fields=feature_fields,
@@ -58,7 +69,7 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
 
     if request_model.input_parameters:
         return AnalysisPlan(
-            selected_function="filtered_search",
+            selected_function="nearest_neighbor_similarity" if preferred_function != "filtered_search" else "filtered_search",
             reason="There is not enough signal for a supervised model, so returning matching rows is safer.",
         )
 
@@ -92,3 +103,27 @@ def interpret_analysis_result(result: dict[str, Any], plan: AnalysisPlan, datase
         "caveats": warnings,
         "improvement_suggestions": improvement_suggestions,
     }
+
+
+def _preferred_function_for_request(task: str, preferred_model: str) -> str | None:
+    mapping = {
+        "linear_regression": "linear_regression",
+        "gradient_boosting": "gradient_boosting_classification" if task == "classification" else "gradient_boosting_regression",
+        "gradient_boosting_regression": "gradient_boosting_regression",
+        "gradient_boosting_classification": "gradient_boosting_classification",
+        "random_forest": "random_forest_classification" if task == "classification" else "random_forest_regression",
+        "random_forest_regression": "random_forest_regression",
+        "random_forest_classification": "random_forest_classification",
+        "nearest_neighbor_similarity": "nearest_neighbor_similarity",
+        "filtered_search": "filtered_search",
+        "auto": None,
+    }
+    return mapping.get(preferred_model)
+
+
+def _auto_regression_function(row_count: int) -> str:
+    if row_count >= 40:
+        return "gradient_boosting_regression"
+    if row_count <= 15:
+        return "linear_regression"
+    return "random_forest_regression"
