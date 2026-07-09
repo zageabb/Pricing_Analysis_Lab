@@ -1,20 +1,37 @@
 # Pricing Analysis Lab
 
-Pricing Analysis Lab is a local Flask application for spreadsheet-driven pricing analysis. It supports both human-guided UI use and agent-style JSON calls, with deterministic analysis functions behind an orchestration layer.
+Pricing Analysis Lab is a local Flask application for spreadsheet-driven pricing analysis. It is designed for two kinds of use:
 
-## What It Does
+- human-guided analysis through a multi-step browser wizard
+- machine or agent-driven analysis through a JSON API
 
-- Upload and inspect `CSV` and `XLSX` pricing datasets
-- Profile columns for type, null count, unique count, and example values
-- Walk through a multi-step analysis wizard instead of a single flat form
+The application profiles uploaded pricing datasets, builds an analysis plan, runs deterministic statistical or machine-learning functions, and returns both structured JSON and human-readable interpretation.
+
+## Documentation Map
+
+- [docs/USER_GUIDE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/USER_GUIDE.md)
+  User-facing walkthrough of the wizard, uploads, saved configs, settings, prompts, and results
+- [docs/API_REFERENCE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/API_REFERENCE.md)
+  JSON request and response behavior for `/api/analyse` and related schema endpoints
+- [docs/ARCHITECTURE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/ARCHITECTURE.md)
+  Internal design of routes, services, analysis functions, persistence, and orchestration
+- [docs/OPERATIONS.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/OPERATIONS.md)
+  Setup, runtime configuration, local operations, troubleshooting, and maintenance
+- [docs/DEVELOPER_GUIDE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/DEVELOPER_GUIDE.md)
+  How to extend the app with new models, routes, prompts, tests, and workflows
+
+## Core Capabilities
+
+- Upload `CSV` and `XLSX` datasets
+- Inspect column profile, preview rows, detected types, null counts, and example values
+- Work through a multi-step analysis wizard
 - Save and reload reusable analysis configurations
-- Accept structured analysis requests through the UI or `POST /api/analyse`
-- Auto-select an analysis plan
-- Run deterministic analysis functions from a safe registry
-- Return human-readable interpretation plus structured JSON output
-- Persist prompts, LLM settings, uploaded dataset metadata, and run history in SQLite
+- Configure prompt templates and LLM settings from the UI
+- Accept analysis requests via `POST /api/analyse`
+- Auto-select an analysis function when `task` or `preferred_model` is set to `auto`
+- Persist run history, prompt metadata, settings, upload metadata, and saved analysis configs in SQLite
 
-## Current Implemented Functions
+## Implemented Analysis Functions
 
 - `random_forest_regression`
 - `random_forest_classification`
@@ -25,19 +42,7 @@ Pricing Analysis Lab is a local Flask application for spreadsheet-driven pricing
 - `descriptive_statistics`
 - `filtered_search`
 
-The Random Forest pipeline uses `scikit-learn` with `ColumnTransformer`, numeric/categorical preprocessing, imputation, train/test split, metrics, predictions, and feature importance output.
-
-## Project Structure
-
-- `app.py` - local Flask entry point
-- `pricing_analysis_lab/config.py` - runtime configuration
-- `pricing_analysis_lab/models.py` - SQLite-backed persistence models
-- `pricing_analysis_lab/routes/` - UI pages and API routes
-- `pricing_analysis_lab/services/` - upload, validation, orchestration, persistence, and analysis services
-- `pricing_analysis_lab/analysis/` - registered deterministic analysis functions
-- `tests/` - loader, validation, settings, API, and model tests
-
-## Setup
+## Quick Start
 
 ```bash
 python3 -m venv .venv
@@ -48,170 +53,51 @@ python3 app.py
 
 Open [http://127.0.0.1:5060](http://127.0.0.1:5060).
 
-## Environment Variables
+## Main Pages
 
-- `SECRET_KEY`
-- `DATABASE_URL`
-- `DATA_DIR`
-- `UPLOAD_DIR`
-- `PROMPT_DIR`
-- `HOST`
-- `PORT`
-- `FLASK_DEBUG`
+- `/` analysis wizard
+- `/settings` LLM provider settings
+- `/admin/prompts` prompt manager
+- `/workflow` workflow diagram
+- `/json-api` request/response schema display
+- `/history` run history
+- `/api/health` health endpoint
 
-## LLM Configuration
+## Project Structure
 
-Use the `LLM Settings` page to configure:
+- [app.py](/Users/geraldabbot/Documents/Price Estimator Design/app.py)
+  Local app entry point
+- [pricing_analysis_lab/factory.py](/Users/geraldabbot/Documents/Price Estimator Design/pricing_analysis_lab/factory.py)
+  Flask app factory and blueprint registration
+- [pricing_analysis_lab/routes](/Users/geraldabbot/Documents/Price Estimator Design/pricing_analysis_lab/routes)
+  Browser pages and API endpoints
+- [pricing_analysis_lab/services](/Users/geraldabbot/Documents/Price Estimator Design/pricing_analysis_lab/services)
+  Orchestration, uploads, persistence, profiling, and validation
+- [pricing_analysis_lab/analysis](/Users/geraldabbot/Documents/Price Estimator Design/pricing_analysis_lab/analysis)
+  Deterministic analysis function implementations
+- [pricing_analysis_lab/models.py](/Users/geraldabbot/Documents/Price Estimator Design/pricing_analysis_lab/models.py)
+  SQLite-backed persistence models
+- [tests](/Users/geraldabbot/Documents/Price Estimator Design/tests)
+  Automated tests
 
-- provider
-- base URL
-- API key environment variable name
-- model name
-- temperature
-- top_p
-- max tokens
-- timeout
-- retry count
-- streaming
-- JSON mode
-
-Current provider adapter support:
-
-- `ollama`
-- `openai`
-- `azure_openai`
-- `openai_compatible`
-- fallback `dummy`
-
-## Uploading a Spreadsheet
-
-1. Open the `Analysis` page.
-2. Upload a `.csv` or `.xlsx` file.
-3. Move through the wizard steps for field selection, parameters, plan generation, review, and execution.
-4. Optionally save the current setup as a reusable analysis configuration.
-5. Run analysis and inspect the JSON result block.
-
-## API Usage
-
-Endpoint:
-
-```bash
-POST /api/analyse
-```
-
-Example request:
-
-```json
-{
-  "data_source": {
-    "type": "uploaded_file",
-    "file_id": "pricing.csv"
-  },
-  "task": "auto",
-  "parameter_fields": ["supplier", "category", "region", "quantity"],
-  "input_parameters": {
-    "supplier": "Acme",
-    "category": "Transformer",
-    "region": "UK",
-    "quantity": 12
-  },
-  "target_fields": ["price"],
-  "output_fields": ["supplier", "price"],
-  "excluded_fields": [],
-  "model_preferences": {
-    "preferred_model": "auto",
-    "allow_llm_to_tune": true
-  },
-  "response_format": "human_and_json"
-}
-```
-
-Example success response:
-
-```json
-{
-  "status": "success",
-  "request_id": "uuid",
-  "analysis_type": "random_forest_regression",
-  "dataset_profile": {},
-  "llm_plan": {},
-  "model_results": {},
-  "statistics": {},
-  "predictions": [],
-  "feature_importance": [],
-  "interpretation": {
-    "summary": "",
-    "reasons": [],
-    "caveats": [],
-    "improvement_suggestions": []
-  },
-  "warnings": [],
-  "errors": []
-}
-```
-
-Example error response:
-
-```json
-{
-  "status": "error",
-  "request_id": "uuid",
-  "errors": [
-    {
-      "stage": "analysis",
-      "message": "Target field(s) not found: price"
-    }
-  ]
-}
-```
-
-## Tests
-
-Run:
+## Running Tests
 
 ```bash
 python3 -m pytest -q
 ```
 
-Current coverage includes:
+## Current Limitations
 
-- CSV loading
-- XLSX loading
-- column profiling
-- JSON request validation
-- saved analysis configuration persistence
-- orchestrator model selection rules
-- prompt loading
-- settings loading
-- Random Forest regression
-- Random Forest classification
-- linear regression
-- gradient boosting regression
-- nearest-neighbour similarity
-- descriptive statistics fallback
-- invalid target field handling
-- insufficient row handling
-- JSON API success and error paths
+- The wizard is server-rendered and session-backed rather than a richer client-side application
+- Orchestration currently uses deterministic heuristics first; live LLM decision-making is scaffolded, not deeply integrated
+- Prompt storage is file-backed and simple rather than versioned
+- Mermaid workflow display is documentation-oriented rather than a full embedded visual renderer
 
-## Adding New Analysis Functions
+## Recommended Reading Order
 
-1. Add a new function under `pricing_analysis_lab/analysis/`.
-2. Implement `validate()` and `run()`.
-3. Register it in `pricing_analysis_lab/analysis/registry.py`.
-4. Update orchestration rules in `pricing_analysis_lab/services/orchestrator.py`.
-5. Add focused tests.
+If you need to understand the application quickly:
 
-## Known Limitations
-
-- The wizard is server-rendered and session-backed rather than a richer client-side application.
-- Prompt editing is file-backed and simple rather than versioned.
-- LLM-assisted planning currently uses deterministic heuristics first; provider-backed prompt execution is scaffolded but not yet deeply integrated into orchestration decisions.
-- Mermaid workflow is currently displayed as source text rather than a bundled offline renderer.
-
-## Next Recommended Improvements
-
-- Add true multi-step UI state with editable generated plans before execution
-- Add upload history and saved analysis configurations
-- Add cross-validation controls and richer warnings
-- Extend the provider abstraction with live orchestrator/result-interpretation calls
-- Add similarity ranking and additional regression/classification models
+1. Read [docs/USER_GUIDE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/USER_GUIDE.md)
+2. Read [docs/API_REFERENCE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/API_REFERENCE.md)
+3. Read [docs/ARCHITECTURE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/ARCHITECTURE.md)
+4. Use [docs/DEVELOPER_GUIDE.md](/Users/geraldabbot/Documents/Price Estimator Design/docs/DEVELOPER_GUIDE.md) when changing code
