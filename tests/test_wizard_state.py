@@ -118,6 +118,31 @@ def test_update_wizard_state_parses_manual_plan_editor_fields(app):
         assert state["manual_plan"]["model_settings"] == {"fit_intercept": True, "test_size": 0.15}
 
 
+def test_update_wizard_state_prefers_explicit_plan_editor_over_hidden_manual_plan(app):
+    with app.test_request_context():
+        form = MultiDict(
+            [
+                ("file_id", "pricing.csv"),
+                ("task", "regression"),
+                ("preferred_model", "auto"),
+                ("manual_plan", '{"selected_function": "gradient_boosting_regression", "reason": "Generated plan"}'),
+                ("plan_selected_function", "linear_regression"),
+                ("plan_reason", "Manual override for baseline comparison."),
+                ("plan_target_field", "price"),
+                ("plan_feature_fields", "quantity, supplier"),
+                ("plan_model_settings", '{"fit_intercept": true, "test_size": 0.1}'),
+                ("plan_preprocessing", '{"scale_numeric": true}'),
+                ("plan_validation", '{"use_train_test_split": true}'),
+            ]
+        )
+        state = update_wizard_state_from_form(form)
+        assert state["manual_plan"]["selected_function"] == "linear_regression"
+        assert state["manual_plan"]["reason"] == "Manual override for baseline comparison."
+        assert state["manual_plan"]["target_field"] == "price"
+        assert state["manual_plan"]["feature_fields"] == ["quantity", "supplier"]
+        assert state["manual_plan"]["model_settings"] == {"fit_intercept": True, "test_size": 0.1}
+
+
 def test_update_wizard_state_preserves_field_names_with_commas(app):
     with app.test_request_context():
         form = MultiDict(

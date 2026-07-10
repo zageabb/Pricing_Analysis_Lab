@@ -196,6 +196,10 @@ def generate_plan():
 def run():
     state = update_wizard_state_from_form(request.form)
     result = analyse_payload(state)
+    result_plan = result.get("llm_plan")
+    if isinstance(result_plan, dict):
+        set_plan_preview(result_plan)
+        set_manual_plan(result_plan)
     set_result_preview(result)
     return redirect(
         url_for(

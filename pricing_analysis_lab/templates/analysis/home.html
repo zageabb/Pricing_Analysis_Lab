@@ -516,6 +516,51 @@
       wizardForm.elements.output_fields.value = JSON.stringify(listFromFields('select[name="output_field_name"]'));
       wizardForm.elements.excluded_fields.value = JSON.stringify(listFromFields('select[name="excluded_field_name"]'));
       wizardForm.elements.input_parameters.value = JSON.stringify(inputParameters);
+
+      if (wizardForm.elements.manual_plan) {
+        const selectedFunction = wizardForm.elements.plan_selected_function?.value?.trim() || "";
+        const reason = wizardForm.elements.plan_reason?.value?.trim() || "";
+        const targetField = wizardForm.elements.plan_target_field?.value?.trim() || "";
+        const featureFields = (wizardForm.elements.plan_feature_fields?.value || "")
+          .split(",")
+          .map((field) => field.trim())
+          .filter(Boolean);
+
+        const parseJsonObject = (text) => {
+          const trimmed = (text || "").trim();
+          if (!trimmed) {
+            return {};
+          }
+          try {
+            const parsed = JSON.parse(trimmed);
+            return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+          } catch (error) {
+            return {};
+          }
+        };
+
+        const manualPlan = {
+          selected_function: selectedFunction,
+          reason,
+          target_field: targetField || null,
+          feature_fields: featureFields,
+          model_settings: parseJsonObject(wizardForm.elements.plan_model_settings?.value),
+          preprocessing: parseJsonObject(wizardForm.elements.plan_preprocessing?.value),
+          validation: parseJsonObject(wizardForm.elements.plan_validation?.value),
+        };
+
+        const hasManualPlan = Object.values(manualPlan).some((value) => {
+          if (Array.isArray(value)) {
+            return value.length > 0;
+          }
+          if (value && typeof value === "object") {
+            return Object.keys(value).length > 0;
+          }
+          return Boolean(value);
+        });
+
+        wizardForm.elements.manual_plan.value = hasManualPlan ? JSON.stringify(manualPlan) : "{}";
+      }
     });
   })();
 </script>

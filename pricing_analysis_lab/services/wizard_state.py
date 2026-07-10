@@ -206,13 +206,6 @@ def _parse_json_object(value: str) -> dict[str, Any]:
 
 def _parse_manual_plan(form, current: dict[str, Any]) -> dict[str, Any]:
     current_plan = current if isinstance(current, dict) else {}
-    raw_plan = form.get("manual_plan")
-    if raw_plan is not None:
-        try:
-            return _normalize_manual_plan(_parse_json_object(raw_plan))
-        except json.JSONDecodeError:
-            return _normalize_manual_plan(current_plan)
-
     selected_function = _normalize_field_name(form.get("plan_selected_function", ""))
     reason = _normalize_field_name(form.get("plan_reason", ""))
     target_field = _normalize_field_name(form.get("plan_target_field", ""))
@@ -220,7 +213,8 @@ def _parse_manual_plan(form, current: dict[str, Any]) -> dict[str, Any]:
     model_settings_text = form.get("plan_model_settings", "")
     preprocessing_text = form.get("plan_preprocessing", "")
     validation_text = form.get("plan_validation", "")
-    if not any(
+
+    has_editor_fields = any(
         [
             selected_function,
             reason,
@@ -230,20 +224,27 @@ def _parse_manual_plan(form, current: dict[str, Any]) -> dict[str, Any]:
             preprocessing_text.strip(),
             validation_text.strip(),
         ]
-    ):
-        return _normalize_manual_plan(current_plan)
-
-    return _normalize_manual_plan(
-        {
-            "selected_function": selected_function or current_plan.get("selected_function", "descriptive_statistics"),
-            "reason": reason or current_plan.get("reason", ""),
-            "target_field": target_field or None,
-            "feature_fields": feature_fields or current_plan.get("feature_fields", []),
-            "model_settings": _parse_json_object(model_settings_text) if model_settings_text.strip() else current_plan.get("model_settings", {}),
-            "preprocessing": _parse_json_object(preprocessing_text) if preprocessing_text.strip() else current_plan.get("preprocessing", {}),
-            "validation": _parse_json_object(validation_text) if validation_text.strip() else current_plan.get("validation", {}),
-        }
     )
+    if has_editor_fields:
+        return _normalize_manual_plan(
+            {
+                "selected_function": selected_function or current_plan.get("selected_function", "descriptive_statistics"),
+                "reason": reason or current_plan.get("reason", ""),
+                "target_field": target_field or None,
+                "feature_fields": feature_fields or current_plan.get("feature_fields", []),
+                "model_settings": _parse_json_object(model_settings_text) if model_settings_text.strip() else current_plan.get("model_settings", {}),
+                "preprocessing": _parse_json_object(preprocessing_text) if preprocessing_text.strip() else current_plan.get("preprocessing", {}),
+                "validation": _parse_json_object(validation_text) if validation_text.strip() else current_plan.get("validation", {}),
+            }
+        )
+
+    raw_plan = form.get("manual_plan")
+    if raw_plan is not None:
+        try:
+            return _normalize_manual_plan(_parse_json_object(raw_plan))
+        except json.JSONDecodeError:
+            return _normalize_manual_plan(current_plan)
+    return _normalize_manual_plan(current_plan)
 
 
 def _parse_field_rows(form, field_name: str) -> list[str]:

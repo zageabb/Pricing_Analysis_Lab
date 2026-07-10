@@ -1,5 +1,6 @@
 import json
 
+from pricing_analysis_lab.routes import analysis as analysis_routes
 from pricing_analysis_lab.extensions import db
 from pricing_analysis_lab.models import AnalysisRun
 
@@ -101,3 +102,49 @@ def test_results_screen_loads_persisted_run_by_request_id(app):
     assert "Latest Analysis Output" in html
     assert "run-123" in html
     assert "Result loaded from run history." in html
+
+
+def test_run_route_persists_effective_plan_for_results_screen(app, monkeypatch):
+    def fake_analyse_payload(_state):
+        return {
+            "status": "success",
+            "request_id": "run-456",
+            "analysis_type": "linear_regression",
+            "llm_plan": {
+                "selected_function": "linear_regression",
+                "reason": "Manual override for baseline comparison.",
+                "target_field": "price",
+                "feature_fields": ["quantity"],
+                "model_settings": {"fit_intercept": True},
+                "preprocessing": {"scale_numeric": True},
+                "validation": {"use_train_test_split": True},
+            },
+            "interpretation": {"summary": "Used manual plan.", "reasons": [], "caveats": [], "improvement_suggestions": []},
+        }
+
+    monkeypatch.setattr(analysis_routes, "analyse_payload", fake_analyse_payload)
+
+    client = app.test_client()
+    response = client.post(
+        "/run",
+        data={
+            "file_id": "pricing.csv",
+            "task": "regression",
+            "preferred_model": "auto",
+            "manual_plan": '{"selected_function": "gradient_boosting_regression", "reason": "Generated plan"}',
+            "plan_selected_function": "linear_regression",
+            "plan_reason": "Manual override for baseline comparison.",
+            "plan_target_field": "price",
+            "plan_feature_fields": "quantity",
+            "plan_model_settings": '{"fit_intercept": true}',
+            "plan_preprocessing": '{"scale_numeric": true}',
+            "plan_validation": '{"use_train_test_split": true}',
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "request_id=run-456" in response.location
+    with client.session_transaction() as session:
+        assert session["analysis_plan_preview"]["selected_function"] == "linear_regression"
+        assert session["analysis_wizard_state"]["manual_plan"]["selected_function"] == "linear_regression"
