@@ -59,3 +59,4 @@ def test_plan_screen_shows_manual_plan_editor(app):
     assert "Editable Model Plan" in html
     assert 'name="plan_selected_function"' in html
     assert 'name="plan_model_settings"' in html
+    assert "AI Chat" in html

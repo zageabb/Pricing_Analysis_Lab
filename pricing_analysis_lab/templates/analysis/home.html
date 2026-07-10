@@ -29,18 +29,6 @@
     </section>
 
     <section class="panel workspace-rail-panel">
-      <h2>Work Process</h2>
-      <ol class="workspace-step-list">
-        {% for step in steps %}
-        <li class="workspace-step-item {% if loop.index == current_step %}workspace-step-active{% endif %}">
-          <span class="workspace-step-number">{{ loop.index }}</span>
-          <span>{{ step }}</span>
-        </li>
-        {% endfor %}
-      </ol>
-    </section>
-
-    <section class="panel workspace-rail-panel">
       <h2>Screens</h2>
       <nav class="workspace-screen-list">
         {% for screen in screens %}
@@ -54,7 +42,6 @@
       </nav>
     </section>
 
-    {% if current_screen == "assistant" %}
     <section class="panel workspace-rail-panel">
       <h2>Assistant Ideas</h2>
       <ul class="simple-list workspace-hint-list">
@@ -63,7 +50,6 @@
         <li><code>what settings do you recommend?</code></li>
       </ul>
     </section>
-    {% endif %}
   </aside>
 
   <div class="workspace-stage">
@@ -371,76 +357,6 @@
 </form>
 {% endif %}
 
-{% if selected_file_id and current_screen == "assistant" %}
-<section class="panel">
-  <div class="panel-heading">
-    <div>
-      <h2>Data Assistant</h2>
-      <p class="muted">Ask questions in plain English, request changes to the setup, or ask the assistant to recommend fields, settings, and analysis approaches.</p>
-    </div>
-    <form method="post" action="{{ url_for('analysis.clear_assistant') }}">
-      <input type="hidden" name="step" value="{{ current_step }}">
-      <button type="submit" class="ghost-button">Clear Chat</button>
-    </form>
-  </div>
-  <div class="assistant-layout">
-    <div class="assistant-thread">
-      {% if assistant_chat %}
-      {% for message in assistant_chat %}
-      <article class="chat-bubble chat-{{ message.role }}">
-        <strong>{{ message.role|title }}</strong>
-        <p>{{ message.content }}</p>
-      </article>
-      {% endfor %}
-      {% else %}
-      <article class="chat-bubble chat-assistant">
-        <strong>Assistant</strong>
-        <p>Try questions like “which field looks best as the target?”, “what columns do we have?”, or commands like “add output field Project Name” and “force analysis type to filtered_search”.</p>
-      </article>
-      {% endif %}
-    </div>
-    <div class="assistant-sidebar">
-      <form method="post" action="{{ url_for('analysis.assistant') }}" class="assistant-form" data-busy-label="AI is thinking about your question...">
-        <input type="hidden" name="file_id" value="{{ selected_file_id }}">
-        <input type="hidden" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or '' }}">
-        <input type="hidden" name="header_row" value="{{ wizard_state.data_source.header_row or 1 }}">
-        <input type="hidden" name="task" value="{{ wizard_state.task }}">
-        <input type="hidden" name="step" value="{{ current_step }}">
-        <input type="hidden" name="screen" value="assistant">
-        <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
-        <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
-        <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>
-        <input type="hidden" name="excluded_fields" value='{{ wizard_state.excluded_fields | tojson }}'>
-        <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
-        <input type="hidden" name="manual_plan" value='{{ wizard_state.manual_plan | tojson }}'>
-        <input type="hidden" name="filter_parameters" value='{{ wizard_state.filter_parameters | tojson }}'>
-        <input type="hidden" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}">
-        <input type="hidden" name="forced_analysis_function" value="{{ wizard_state.model_preferences.forced_analysis_function }}">
-        {% if wizard_state.model_preferences.allow_llm_to_tune %}
-        <input type="hidden" name="allow_llm_to_tune" value="on">
-        {% endif %}
-        <label>Message
-          <textarea name="assistant_message" rows="8" placeholder="Ask a question or give an instruction, for example: Which target field would you recommend? | Add parameter field Primary Voltage | What settings do you recommend for this plan?"></textarea>
-        </label>
-        <button type="submit" data-busy-label="AI is thinking about your question...">Send to Assistant</button>
-      </form>
-      <div class="panel subtle-panel">
-        <h3>Useful Commands</h3>
-        <ul class="simple-list">
-          <li><code>add target field Unit Price (Source)</code></li>
-          <li><code>add output field Project Name</code></li>
-          <li><code>set parameter value for Primary Voltage to 220</code></li>
-          <li><code>set header row to 3</code></li>
-          <li><code>force analysis type to linear_regression</code></li>
-          <li><code>what settings do you recommend?</code></li>
-          <li><code>which field should be the target?</code></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-{% endif %}
-
 {% if selected_file_id and current_screen == "data" %}
 <section class="panel">
   <h2>Data Surface</h2>
@@ -628,6 +544,69 @@
     });
   })();
 </script>
+{% if selected_file_id %}
+<details class="assistant-float" id="assistant-float">
+  <summary class="assistant-fab">AI Chat</summary>
+  <div class="assistant-modal panel">
+    <div class="assistant-modal-header">
+      <div>
+        <h2>AI Chat</h2>
+        <p class="muted">Ask questions directly without leaving this screen.</p>
+      </div>
+      <form method="post" action="{{ url_for('analysis.clear_assistant') }}">
+        <input type="hidden" name="step" value="{{ current_step }}">
+        <input type="hidden" name="screen" value="{{ current_screen }}">
+        <input type="hidden" name="return_screen" value="{{ current_screen }}">
+        <button type="submit" class="ghost-button">Clear Chat</button>
+      </form>
+    </div>
+    <div class="assistant-modal-body">
+      <div class="assistant-thread assistant-thread-floating">
+        {% if assistant_chat %}
+        {% for message in assistant_chat %}
+        <article class="chat-bubble chat-{{ message.role }}">
+          <strong>{{ message.role|title }}</strong>
+          <p>{{ message.content }}</p>
+        </article>
+        {% endfor %}
+        {% else %}
+        <article class="chat-bubble chat-assistant">
+          <strong>Assistant</strong>
+          <p>Try questions like “which field looks best as the target?”, “what columns do we have?”, or “what settings do you recommend for this dataset?”.</p>
+        </article>
+        {% endif %}
+      </div>
+      <form method="post" action="{{ url_for('analysis.assistant') }}" class="assistant-form" data-busy-label="AI is thinking about your question...">
+        <input type="hidden" name="file_id" value="{{ selected_file_id }}">
+        <input type="hidden" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or '' }}">
+        <input type="hidden" name="header_row" value="{{ wizard_state.data_source.header_row or 1 }}">
+        <input type="hidden" name="task" value="{{ wizard_state.task }}">
+        <input type="hidden" name="step" value="{{ current_step }}">
+        <input type="hidden" name="screen" value="{{ current_screen }}">
+        <input type="hidden" name="return_screen" value="{{ current_screen }}">
+        <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
+        <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
+        <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>
+        <input type="hidden" name="excluded_fields" value='{{ wizard_state.excluded_fields | tojson }}'>
+        <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
+        <input type="hidden" name="manual_plan" value='{{ wizard_state.manual_plan | tojson }}'>
+        <input type="hidden" name="filter_parameters" value='{{ wizard_state.filter_parameters | tojson }}'>
+        <input type="hidden" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}">
+        <input type="hidden" name="forced_analysis_function" value="{{ wizard_state.model_preferences.forced_analysis_function }}">
+        {% if wizard_state.model_preferences.allow_llm_to_tune %}
+        <input type="hidden" name="allow_llm_to_tune" value="on">
+        {% endif %}
+        <label>Message
+          <textarea name="assistant_message" rows="6" placeholder="Ask a question or give an instruction, for example: Which target field would you recommend? | Add parameter field Primary Voltage | What settings do you recommend for this plan?"></textarea>
+        </label>
+        <div class="assistant-modal-actions">
+          <button type="submit" data-busy-label="AI is thinking about your question...">Send to Assistant</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</details>
+{% endif %}
   </div>
 </section>
 {% endblock %}

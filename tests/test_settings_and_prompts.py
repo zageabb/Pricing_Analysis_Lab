@@ -40,6 +40,19 @@ def test_prompt_loading(tmp_path):
         assert "workflow" in body.lower() or "orchestration" in body.lower()
 
 
+def test_settings_screen_exposes_settings_hub_links(tmp_path):
+    app = _make_app(tmp_path)
+    client = app.test_client()
+
+    response = client.get("/settings/")
+    html = response.get_data(as_text=True)
+
+    assert "Settings Hub" in html
+    assert "Prompt Manager" in html
+    assert "JSON API" in html
+    assert "Run History" in html
+
+
 def _make_app(tmp_path: Path):
     db_path = tmp_path / "app.db"
     data_dir = tmp_path / "data"

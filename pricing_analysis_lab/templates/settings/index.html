@@ -1,6 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel">
+  <p class="eyebrow">Settings Hub</p>
+  <h1>Manage the application from one place.</h1>
+  <p class="muted">Use this screen to configure models, prompts, workflow tools, API access, and operational history.</p>
+  <div class="settings-hub-grid">
+    <a class="settings-card-link" href="{{ url_for('settings.index') }}">
+      <strong>LLM Settings</strong>
+      <span>Provider, endpoint, model, temperature, timeout, retries, and JSON mode.</span>
+    </a>
+    <a class="settings-card-link" href="{{ url_for('admin.prompts') }}">
+      <strong>Prompt Manager</strong>
+      <span>Review and edit prompt templates used by the orchestration flow.</span>
+    </a>
+    <a class="settings-card-link" href="{{ url_for('workflow.index') }}">
+      <strong>Workflow</strong>
+      <span>Inspect the app workflow and execution surfaces.</span>
+    </a>
+    <a class="settings-card-link" href="{{ url_for('json_api.index') }}">
+      <strong>JSON API</strong>
+      <span>Open the machine-facing API view and schema-based entry points.</span>
+    </a>
+    <a class="settings-card-link" href="{{ url_for('history.index') }}">
+      <strong>Run History</strong>
+      <span>Review previous runs, outputs, and request tracking.</span>
+    </a>
+    <a class="settings-card-link" href="{{ url_for('api.health') }}">
+      <strong>API Health</strong>
+      <span>Check service health and connectivity quickly.</span>
+    </a>
+  </div>
+</section>
+
+<section class="panel">
   <h1>LLM Settings</h1>
   <form method="post" class="form-grid">
     <label>Provider<input type="text" name="provider" value="{{ llm_settings.provider }}"></label>
