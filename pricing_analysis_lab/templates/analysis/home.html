@@ -4,312 +4,577 @@
 {% set output_rows = 6 %}
 {% set target_rows = 3 %}
 {% set excluded_rows = 4 %}
-<section class="hero">
-  <p class="eyebrow">Guided Pricing Workflow</p>
-  <h1>Spreadsheet-driven pricing analysis for people and agents.</h1>
-  <p class="lede">
-    The analysis engine, JSON API, prompt manager, and LLM settings all live in one place.
-  </p>
+<section class="hero workspace-hero">
+  <div>
+    <p class="eyebrow">Pricing Analysis Workspace</p>
+    <h1>Move between setup, planning, chat, and results without one long screen.</h1>
+    <p class="lede">
+      Use the assistant to inspect the spreadsheet, refine fields, and shape the analysis.
+      Good starting prompts are <code>which column should be the target?</code>,
+      <code>add output field Project Name</code>, and <code>force analysis type to linear_regression</code>.
+    </p>
+  </div>
+  <div class="hero-actions">
+    <form method="post" action="{{ url_for('analysis.reset_wizard') }}">
+      <button type="submit" class="ghost-button">Reset Workspace</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel sticky-summary">
+  <div class="summary-bar">
+    <div class="summary-main">
+      <h2>Current Dataset</h2>
+      <p class="muted">{{ selected_file_id or "No file uploaded yet" }}</p>
+    </div>
+    <div class="stat-grid compact-stats">
+      <div><strong>Rows</strong><span>{{ dataset_profile.row_count }}</span></div>
+      <div><strong>Columns</strong><span>{{ dataset_profile.column_count }}</span></div>
+      <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
+      <div><strong>Header Row</strong><span>{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}</span></div>
+    </div>
+  </div>
+  <div class="screen-nav">
+    {% for screen in screens %}
+    <a
+      href="{{ url_for('analysis.home', file_id=selected_file_id, step=current_step, screen=screen.key, header_row=wizard_state.data_source.header_row or 1) }}"
+      class="screen-pill {% if current_screen == screen.key %}screen-pill-active{% endif %}"
+    >
+      {{ screen.label }}
+    </a>
+    {% endfor %}
+  </div>
 </section>
 
 <section class="panel">
-  <h2>Wizard Steps</h2>
-  <ol class="step-list wizard-steps">
+  <h2>Workflow</h2>
+  <ol class="step-list wizard-steps compact-steps">
     {% for step in steps %}
     <li class="{% if loop.index == current_step %}active-step{% endif %}">{{ loop.index }}. {{ step }}</li>
     {% endfor %}
   </ol>
 </section>
 
-<section class="panel">
-  <h2>Dataset Summary Surface</h2>
-  <div class="stat-grid">
-    <div><strong>Rows</strong><span>{{ dataset_profile.row_count }}</span></div>
-    <div><strong>Columns</strong><span>{{ dataset_profile.column_count }}</span></div>
-    <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
-    <div><strong>Header Row</strong><span>{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}</span></div>
-  </div>
-</section>
+{% if selected_file_id and current_screen in ["configure", "plan"] %}
+<form id="wizard-form" method="post" action="{{ url_for('analysis.update_wizard') }}" class="workspace-form">
+  <input type="hidden" name="file_id" value="{{ selected_file_id }}">
+  <input type="hidden" name="next_step" value="{{ current_step + 1 if current_step < 7 else 7 }}">
+  <input type="hidden" name="screen" value="{{ current_screen }}">
+  <input type="hidden" name="step" value="{{ current_step }}">
+  <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
+  <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
+  <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>
+  <input type="hidden" name="excluded_fields" value='{{ wizard_state.excluded_fields | tojson }}'>
+  <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
+  <input type="hidden" name="manual_plan" value='{{ wizard_state.manual_plan | tojson }}'>
 
-<section class="panel">
-  <h2>Step 1: Upload Spreadsheet</h2>
-  <form method="post" action="{{ url_for('analysis.upload') }}" enctype="multipart/form-data" class="form-grid">
-    <label class="form-actions">Spreadsheet<input type="file" name="spreadsheet" accept=".csv,.xlsx"></label>
-    <div class="form-actions"><button type="submit">Upload</button></div>
-  </form>
-  <form method="post" action="{{ url_for('analysis.reset_wizard') }}">
-    <div class="form-actions"><button type="submit">Reset Wizard</button></div>
-  </form>
-</section>
+{% endif %}
 
-{% if selected_file_id %}
+{% if current_screen == "intake" %}
+  <section class="panel">
+    <h2>Upload Spreadsheet</h2>
+    <div class="two-column-layout">
+      <div class="panel subtle-panel">
+        <h3>Upload</h3>
+        <form method="post" action="{{ url_for('analysis.upload') }}" enctype="multipart/form-data" class="form-grid">
+          <label class="form-actions">Spreadsheet
+            <input type="file" name="spreadsheet" accept=".csv,.xlsx">
+          </label>
+          <p class="muted form-span">Upload a CSV or Excel workbook with the pricing rows you want to explore. After upload, choose the header row and map fields.</p>
+          <div class="form-actions"><button type="submit">Upload Spreadsheet</button></div>
+        </form>
+      </div>
+      <div class="panel subtle-panel">
+        <h3>Saved Configurations</h3>
+        {% if saved_configs %}
+        <div class="saved-configs">
+          {% for config in saved_configs %}
+          <form method="post" action="{{ url_for('analysis.load_config', config_id=config.id) }}">
+            <button type="submit">{{ config.name }}</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">No saved configurations yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+{% endif %}
+
+{% if selected_file_id and current_screen == "configure" %}
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <h2>Configure Fields</h2>
+        <p class="muted">Choose the fields that drive pricing, the value you want to explain or predict, and the outputs you want returned in the results.</p>
+      </div>
+      <div class="action-cluster">
+        <button type="submit">Save Step and Continue</button>
+        <button type="submit" formaction="{{ url_for('analysis.save_config') }}" formmethod="post">Save Configuration</button>
+      </div>
+    </div>
+    <div class="wizard-grid">
+      <label>Sheet Name<input type="text" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or dataset_profile.sheet_name or '' }}" placeholder="Leave blank to use the active sheet"></label>
+      <label>Header Row<input type="number" name="header_row" min="1" value="{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}" placeholder="Usually 1 unless titles start lower down"></label>
+      <label>Task
+        <select name="task">
+          {% for task_option in ["auto", "prediction", "classification", "regression", "similarity/search", "data summary/statistical analysis"] %}
+          <option value="{{ task_option }}" {% if wizard_state.task == task_option %}selected{% endif %}>{{ task_option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Preferred Model
+        <select name="preferred_model">
+          {% for function_key, function_label in available_analysis_functions %}
+          <option value="{{ function_key }}" {% if wizard_state.model_preferences.preferred_model == function_key %}selected{% endif %}>{{ function_label }}</option>
+          {% endfor %}
+          <option value="random_forest" {% if wizard_state.model_preferences.preferred_model == "random_forest" %}selected{% endif %}>Random forest (family)</option>
+          <option value="gradient_boosting" {% if wizard_state.model_preferences.preferred_model == "gradient_boosting" %}selected{% endif %}>Gradient boosting (family)</option>
+        </select>
+      </label>
+      <label>Force Analysis Type
+        <select name="forced_analysis_function">
+          {% for function_key, function_label in available_analysis_functions %}
+          <option value="{{ function_key }}" {% if wizard_state.model_preferences.forced_analysis_function == function_key %}selected{% endif %}>{{ function_label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="checkbox-row"><input type="checkbox" name="allow_llm_to_tune" {% if wizard_state.model_preferences.allow_llm_to_tune %}checked{% endif %}> Let the assistant recommend conservative model settings and preprocessing choices</label>
+    </div>
+
+    <div class="accordion-grid">
+      <details class="workspace-accordion" open>
+        <summary>Parameter Fields and Input Values</summary>
+        <div class="table-scroll">
+          <table class="data-table selector-table">
+            <thead>
+              <tr><th>Use</th><th>Detected Field</th><th>Input Value</th></tr>
+            </thead>
+            <tbody>
+              {% for row_index in range(parameter_rows) %}
+              {% set selected_field = wizard_state.parameter_fields[row_index] if row_index < wizard_state.parameter_fields|length else '' %}
+              <tr>
+                <td>{{ row_index + 1 }}</td>
+                <td>
+                  <select name="parameter_field_name">
+                    <option value="">Select field</option>
+                    {% for column in available_columns %}
+                    <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td><input type="text" name="parameter_field_value" value="{{ wizard_state.input_parameters.get(selected_field, '') if selected_field else '' }}" placeholder="Optional filter or scenario value, for example 220 or Europe"></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="workspace-accordion" open>
+        <summary>Target Fields</summary>
+        <div class="table-scroll">
+          <table class="data-table selector-table">
+            <thead>
+              <tr><th>Use</th><th>Detected Field</th></tr>
+            </thead>
+            <tbody>
+              {% for row_index in range(target_rows) %}
+              {% set selected_field = wizard_state.target_fields[row_index] if row_index < wizard_state.target_fields|length else '' %}
+              <tr>
+                <td>{{ row_index + 1 }}</td>
+                <td>
+                  <select name="target_field_name">
+                    <option value="">Select field</option>
+                    {% for column in available_columns %}
+                    <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="workspace-accordion">
+        <summary>Output Fields</summary>
+        <div class="table-scroll">
+          <table class="data-table selector-table">
+            <thead>
+              <tr><th>Use</th><th>Detected Field</th></tr>
+            </thead>
+            <tbody>
+              {% for row_index in range(output_rows) %}
+              {% set selected_field = wizard_state.output_fields[row_index] if row_index < wizard_state.output_fields|length else '' %}
+              <tr>
+                <td>{{ row_index + 1 }}</td>
+                <td>
+                  <select name="output_field_name">
+                    <option value="">Select field</option>
+                    {% for column in available_columns %}
+                    <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="workspace-accordion">
+        <summary>Excluded Fields and Filters</summary>
+        <div class="table-scroll">
+          <table class="data-table selector-table">
+            <thead>
+              <tr><th>Use</th><th>Detected Field</th></tr>
+            </thead>
+            <tbody>
+              {% for row_index in range(excluded_rows) %}
+              {% set selected_field = wizard_state.excluded_fields[row_index] if row_index < wizard_state.excluded_fields|length else '' %}
+              <tr>
+                <td>{{ row_index + 1 }}</td>
+                <td>
+                  <select name="excluded_field_name">
+                    <option value="">Select field</option>
+                    {% for column in available_columns %}
+                    <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <label class="full-width-label">Filter Parameters JSON
+          <textarea name="filter_parameters" rows="6" placeholder='{"region": "Europe", "status": "Won"}'>{{ wizard_state.filter_parameters | tojson(indent=2) }}</textarea>
+        </label>
+      </details>
+    </div>
+  </section>
+  {% endif %}
+
+{% if selected_file_id and current_screen == "plan" %}
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <h2>Plan Review</h2>
+        <p class="muted">Generate a draft plan, review why it was chosen, edit any part of it manually, and ask the assistant whether the settings look sensible.</p>
+      </div>
+      <div class="action-cluster">
+        <button type="submit" formaction="{{ url_for('analysis.generate_plan') }}" formmethod="post" data-busy-label="AI is generating a model plan...">Generate Model Plan</button>
+        <button type="submit" formaction="{{ url_for('analysis.run') }}" formmethod="post" data-busy-label="AI is running the analysis...">Run Analysis</button>
+      </div>
+    </div>
+    <div class="two-column-layout">
+      <div class="panel subtle-panel">
+        <h3>Analysis Controls</h3>
+        <p class="muted">Start with auto if you want the app to decide. Use preferred model to guide the planner, or force a type only when you know the exact analysis you want.</p>
+        <label>Preferred Model
+          <select name="preferred_model">
+            {% for function_key, function_label in available_analysis_functions %}
+            <option value="{{ function_key }}" {% if wizard_state.model_preferences.preferred_model == function_key %}selected{% endif %}>{{ function_label }}</option>
+            {% endfor %}
+            <option value="random_forest" {% if wizard_state.model_preferences.preferred_model == "random_forest" %}selected{% endif %}>Random forest (family)</option>
+            <option value="gradient_boosting" {% if wizard_state.model_preferences.preferred_model == "gradient_boosting" %}selected{% endif %}>Gradient boosting (family)</option>
+          </select>
+        </label>
+        <label>Force Analysis Type
+          <select name="forced_analysis_function">
+            {% for function_key, function_label in available_analysis_functions %}
+            <option value="{{ function_key }}" {% if wizard_state.model_preferences.forced_analysis_function == function_key %}selected{% endif %}>{{ function_label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="panel subtle-panel">
+        <h3>Current Intent</h3>
+        <ul class="simple-list">
+          <li><strong>Task:</strong> {{ wizard_state.task }}</li>
+          <li><strong>Parameters:</strong> {{ wizard_state.parameter_fields | join(", ") or "None selected yet" }}</li>
+          <li><strong>Targets:</strong> {{ wizard_state.target_fields | join(", ") or "None selected yet" }}</li>
+          <li><strong>Outputs:</strong> {{ wizard_state.output_fields | join(", ") or "None selected yet" }}</li>
+        </ul>
+      </div>
+    </div>
+    {% if plan_preview %}
+    <div class="two-column-layout">
+      <div class="panel subtle-panel">
+        <h3>Editable Model Plan</h3>
+        <div class="form-grid">
+          <label>Selected Function
+            <select name="plan_selected_function">
+              {% for function_key, function_label in available_analysis_functions %}
+              <option value="{{ function_key }}" {% if active_plan and active_plan.selected_function == function_key %}selected{% endif %}>{{ function_label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Target Field
+            <select name="plan_target_field">
+              <option value="">No target field</option>
+              {% for column in available_columns %}
+              <option value="{{ column }}" {% if active_plan and active_plan.target_field == column %}selected{% endif %}>{{ column }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="form-span">Reason
+            <textarea name="plan_reason" rows="4" placeholder="Explain why this model and setup should be used for this dataset.">{{ active_plan.reason if active_plan else '' }}</textarea>
+          </label>
+          <label class="form-span">Feature Fields
+            <input type="text" name="plan_feature_fields" value="{{ active_plan.feature_fields | join(', ') if active_plan else '' }}" placeholder="Comma-separated fields the model should learn from, for example quantity, supplier, voltage">
+          </label>
+          <label class="form-span">Model Settings JSON
+            <textarea name="plan_model_settings" rows="8" placeholder='{"n_estimators": 300, "test_size": 0.2}'>{{ active_plan.model_settings | tojson(indent=2) if active_plan else '{}' }}</textarea>
+          </label>
+          <label>Preprocessing JSON
+            <textarea name="plan_preprocessing" rows="8" placeholder='{"encode_categoricals": true, "scale_numeric": false}'>{{ active_plan.preprocessing | tojson(indent=2) if active_plan else '{}' }}</textarea>
+          </label>
+          <label>Validation JSON
+            <textarea name="plan_validation" rows="8" placeholder='{"use_train_test_split": true, "use_cross_validation": false}'>{{ active_plan.validation | tojson(indent=2) if active_plan else '{}' }}</textarea>
+          </label>
+        </div>
+      </div>
+      <div class="panel subtle-panel">
+        <h3>Generated Plan JSON</h3>
+        <pre class="json-block">{{ plan_preview | tojson(indent=2) }}</pre>
+      </div>
+    </div>
+    <div class="panel subtle-panel">
+      <h3>Ask the Assistant for Settings Advice</h3>
+      <p class="muted">Try prompts like <code>what settings do you recommend for this dataset?</code>, <code>is this enough data for regression?</code>, or <code>how should I tune this plan for a small sample?</code>.</p>
+    </div>
+    {% else %}
+    <p class="muted">Generate a plan to inspect the chosen function and model settings.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+{% if selected_file_id and current_screen in ["configure", "plan"] %}
+</form>
+{% endif %}
+
+{% if selected_file_id and current_screen == "assistant" %}
 <section class="panel">
-  <h2>Saved Analysis Configurations</h2>
-  {% if saved_configs %}
-  <div class="saved-configs">
-    {% for config in saved_configs %}
-    <form method="post" action="{{ url_for('analysis.load_config', config_id=config.id) }}">
-      <button type="submit">{{ config.name }}</button>
+  <div class="panel-heading">
+    <div>
+      <h2>Data Assistant</h2>
+      <p class="muted">Ask questions in plain English, request changes to the setup, or ask the assistant to recommend fields, settings, and analysis approaches.</p>
+    </div>
+    <form method="post" action="{{ url_for('analysis.clear_assistant') }}">
+      <input type="hidden" name="step" value="{{ current_step }}">
+      <button type="submit" class="ghost-button">Clear Chat</button>
     </form>
-    {% endfor %}
   </div>
-  {% else %}
-  <p>No saved configurations yet.</p>
+  <div class="assistant-layout">
+    <div class="assistant-thread">
+      {% if assistant_chat %}
+      {% for message in assistant_chat %}
+      <article class="chat-bubble chat-{{ message.role }}">
+        <strong>{{ message.role|title }}</strong>
+        <p>{{ message.content }}</p>
+      </article>
+      {% endfor %}
+      {% else %}
+      <article class="chat-bubble chat-assistant">
+        <strong>Assistant</strong>
+        <p>Try questions like “which field looks best as the target?”, “what columns do we have?”, or commands like “add output field Project Name” and “force analysis type to filtered_search”.</p>
+      </article>
+      {% endif %}
+    </div>
+    <div class="assistant-sidebar">
+      <form method="post" action="{{ url_for('analysis.assistant') }}" class="assistant-form" data-busy-label="AI is thinking about your question...">
+        <input type="hidden" name="file_id" value="{{ selected_file_id }}">
+        <input type="hidden" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or '' }}">
+        <input type="hidden" name="header_row" value="{{ wizard_state.data_source.header_row or 1 }}">
+        <input type="hidden" name="task" value="{{ wizard_state.task }}">
+        <input type="hidden" name="step" value="{{ current_step }}">
+        <input type="hidden" name="screen" value="assistant">
+        <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
+        <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
+        <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>
+        <input type="hidden" name="excluded_fields" value='{{ wizard_state.excluded_fields | tojson }}'>
+        <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
+        <input type="hidden" name="manual_plan" value='{{ wizard_state.manual_plan | tojson }}'>
+        <input type="hidden" name="filter_parameters" value='{{ wizard_state.filter_parameters | tojson }}'>
+        <input type="hidden" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}">
+        <input type="hidden" name="forced_analysis_function" value="{{ wizard_state.model_preferences.forced_analysis_function }}">
+        {% if wizard_state.model_preferences.allow_llm_to_tune %}
+        <input type="hidden" name="allow_llm_to_tune" value="on">
+        {% endif %}
+        <label>Message
+          <textarea name="assistant_message" rows="8" placeholder="Ask a question or give an instruction, for example: Which target field would you recommend? | Add parameter field Primary Voltage | What settings do you recommend for this plan?"></textarea>
+        </label>
+        <button type="submit" data-busy-label="AI is thinking about your question...">Send to Assistant</button>
+      </form>
+      <div class="panel subtle-panel">
+        <h3>Useful Commands</h3>
+        <ul class="simple-list">
+          <li><code>add target field Unit Price (Source)</code></li>
+          <li><code>add output field Project Name</code></li>
+          <li><code>set parameter value for Primary Voltage to 220</code></li>
+          <li><code>set header row to 3</code></li>
+          <li><code>force analysis type to linear_regression</code></li>
+          <li><code>what settings do you recommend?</code></li>
+          <li><code>which field should be the target?</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if selected_file_id and current_screen == "data" %}
+<section class="panel">
+  <h2>Data Surface</h2>
+  <div class="data-screen-grid">
+    <div class="panel subtle-panel">
+      <h3>Data Preview</h3>
+      {% if dataset_profile.preview %}
+      <div class="table-scroll preview-table-wrap">
+        <table class="data-table wide-table">
+          <thead>
+            <tr>
+              {% for column in dataset_profile.columns %}
+              <th>{{ column.name }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in dataset_profile.preview %}
+            <tr>
+              {% for column in dataset_profile.columns %}
+              <td>{{ row[column.name] }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="muted">No preview rows available.</p>
+      {% endif %}
+    </div>
+    <div class="panel subtle-panel">
+      <h3>Column Profile</h3>
+      <div class="table-scroll profile-table-wrap">
+        <table class="data-table wide-table">
+          <thead>
+            <tr><th>Name</th><th>Type</th><th>Nulls</th><th>Unique</th><th>Examples</th></tr>
+          </thead>
+          <tbody>
+            {% for column in dataset_profile.columns %}
+            <tr>
+              <td>{{ column.name }}</td>
+              <td>{{ column.inferred_type }}</td>
+              <td>{{ column.null_count }}</td>
+              <td>{{ column.unique_count }}</td>
+              <td>{{ column.example_values | join(', ') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if current_screen == "results" %}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>Results</h2>
+      <p class="muted">Run output and the most recent plan stay together here for review.</p>
+    </div>
+    {% if selected_file_id %}
+    <form method="post" action="{{ url_for('analysis.run') }}">
+      <input type="hidden" name="file_id" value="{{ selected_file_id }}">
+      <input type="hidden" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or '' }}">
+      <input type="hidden" name="header_row" value="{{ wizard_state.data_source.header_row or 1 }}">
+      <input type="hidden" name="task" value="{{ wizard_state.task }}">
+      <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
+      <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
+      <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>
+      <input type="hidden" name="excluded_fields" value='{{ wizard_state.excluded_fields | tojson }}'>
+      <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
+      <input type="hidden" name="manual_plan" value='{{ wizard_state.manual_plan | tojson }}'>
+      <input type="hidden" name="filter_parameters" value='{{ wizard_state.filter_parameters | tojson }}'>
+      <input type="hidden" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}">
+      <input type="hidden" name="forced_analysis_function" value="{{ wizard_state.model_preferences.forced_analysis_function }}">
+      {% if wizard_state.model_preferences.allow_llm_to_tune %}
+      <input type="hidden" name="allow_llm_to_tune" value="on">
+      {% endif %}
+      <button type="submit" data-busy-label="AI is running the analysis...">Run Again</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if result_preview %}
+  <div class="results-summary-grid">
+    <div class="panel subtle-panel">
+      <h3>Status</h3>
+      <p><strong>{{ result_preview.status }}</strong></p>
+      <p class="muted">Request ID: {{ result_preview.request_id }}</p>
+    </div>
+    <div class="panel subtle-panel">
+      <h3>Analysis Type</h3>
+      <p><strong>{{ result_preview.analysis_type or "Not reported" }}</strong></p>
+      <p class="muted">{{ result_preview.interpretation.summary if result_preview.interpretation else "No interpretation summary yet." }}</p>
+    </div>
+  </div>
+  {% if result_preview.interpretation %}
+  <div class="two-column-layout">
+    <div class="panel subtle-panel">
+      <h3>Reasons</h3>
+      {% if result_preview.interpretation.reasons %}
+      <ul class="simple-list">
+        {% for reason in result_preview.interpretation.reasons %}
+        <li>{{ reason }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">No reasons were returned.</p>
+      {% endif %}
+    </div>
+    <div class="panel subtle-panel">
+      <h3>Caveats and Suggestions</h3>
+      {% if result_preview.interpretation.caveats %}
+      <ul class="simple-list">
+        {% for caveat in result_preview.interpretation.caveats %}
+        <li>{{ caveat }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if result_preview.interpretation.improvement_suggestions %}
+      <ul class="simple-list">
+        {% for item in result_preview.interpretation.improvement_suggestions %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
   {% endif %}
-</section>
-
-<section class="panel">
-  <h2>Step 2-6: Configure and Run</h2>
-  <form id="wizard-form" method="post" action="{{ url_for('analysis.update_wizard') }}" class="form-grid">
-    <input type="hidden" name="file_id" value="{{ selected_file_id }}">
-    <input type="hidden" name="next_step" value="{{ current_step + 1 if current_step < 7 else 7 }}">
-    <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
-    <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
-    <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>
-    <input type="hidden" name="excluded_fields" value='{{ wizard_state.excluded_fields | tojson }}'>
-    <input type="hidden" name="input_parameters" value='{{ wizard_state.input_parameters | tojson }}'>
-    <label>Sheet Name<input type="text" name="sheet_name" value="{{ wizard_state.data_source.sheet_name or dataset_profile.sheet_name or '' }}"></label>
-    <label>Header Row
-      <input
-        type="number"
-        name="header_row"
-        min="1"
-        value="{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}"
-      >
-    </label>
-    <label>Task
-      <input type="text" name="task" value="{{ wizard_state.task }}">
-    </label>
-    <div class="form-span">
-      <h3 class="section-label">Parameter Fields and Input Values</h3>
-      <div class="table-scroll">
-        <table class="data-table selector-table">
-          <thead>
-            <tr><th>Use</th><th>Detected Field</th><th>Input Value</th></tr>
-          </thead>
-          <tbody>
-            {% for row_index in range(parameter_rows) %}
-            {% set selected_field = wizard_state.parameter_fields[row_index] if row_index < wizard_state.parameter_fields|length else '' %}
-            <tr>
-              <td>{{ row_index + 1 }}</td>
-              <td>
-                <select name="parameter_field_name">
-                  <option value="">Select field</option>
-                  {% for column in available_columns %}
-                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-              <td>
-                <input
-                  type="text"
-                  name="parameter_field_value"
-                  value="{{ wizard_state.input_parameters.get(selected_field, '') if selected_field else '' }}"
-                  placeholder="Optional value"
-                >
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="form-span">
-      <h3 class="section-label">Target Fields</h3>
-      <div class="table-scroll">
-        <table class="data-table selector-table">
-          <thead>
-            <tr><th>Use</th><th>Detected Field</th></tr>
-          </thead>
-          <tbody>
-            {% for row_index in range(target_rows) %}
-            {% set selected_field = wizard_state.target_fields[row_index] if row_index < wizard_state.target_fields|length else '' %}
-            <tr>
-              <td>{{ row_index + 1 }}</td>
-              <td>
-                <select name="target_field_name">
-                  <option value="">Select field</option>
-                  {% for column in available_columns %}
-                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="form-span">
-      <h3 class="section-label">Output Fields</h3>
-      <div class="table-scroll">
-        <table class="data-table selector-table">
-          <thead>
-            <tr><th>Use</th><th>Detected Field</th></tr>
-          </thead>
-          <tbody>
-            {% for row_index in range(output_rows) %}
-            {% set selected_field = wizard_state.output_fields[row_index] if row_index < wizard_state.output_fields|length else '' %}
-            <tr>
-              <td>{{ row_index + 1 }}</td>
-              <td>
-                <select name="output_field_name">
-                  <option value="">Select field</option>
-                  {% for column in available_columns %}
-                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="form-span">
-      <h3 class="section-label">Excluded Fields</h3>
-      <div class="table-scroll">
-        <table class="data-table selector-table">
-          <thead>
-            <tr><th>Use</th><th>Detected Field</th></tr>
-          </thead>
-          <tbody>
-            {% for row_index in range(excluded_rows) %}
-            {% set selected_field = wizard_state.excluded_fields[row_index] if row_index < wizard_state.excluded_fields|length else '' %}
-            <tr>
-              <td>{{ row_index + 1 }}</td>
-              <td>
-                <select name="excluded_field_name">
-                  <option value="">Select field</option>
-                  {% for column in available_columns %}
-                  <option value="{{ column }}" {% if selected_field == column %}selected{% endif %}>{{ column }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <label>Filter Parameters JSON
-      <textarea name="filter_parameters" rows="6">{{ wizard_state.filter_parameters | tojson(indent=2) }}</textarea>
-    </label>
-    <label>Preferred Model<input type="text" name="preferred_model" value="{{ wizard_state.model_preferences.preferred_model }}"></label>
-    <label class="checkbox-row"><input type="checkbox" name="allow_llm_to_tune" {% if wizard_state.model_preferences.allow_llm_to_tune %}checked{% endif %}> Allow LLM to tune</label>
-    <div class="form-actions"><button type="submit">Save Step and Continue</button></div>
-  </form>
-</section>
-
-<section class="panel">
-  <h2>Save Current Configuration</h2>
-  <div class="form-grid">
-    <label>Config Name<input type="text" name="config_name" form="wizard-form" placeholder="UK transformer pricing baseline"></label>
-    <div class="form-actions">
-      <button
-        type="submit"
-        form="wizard-form"
-        formaction="{{ url_for('analysis.save_config') }}"
-        formmethod="post"
-      >
-        Save Configuration
-      </button>
-    </div>
-  </div>
-</section>
-
-<section class="panel">
-  <h2>Step 4-5: Generate and Review Plan</h2>
-  <div class="form-grid">
-    <div class="form-actions">
-      <button
-        type="submit"
-        form="wizard-form"
-        formaction="{{ url_for('analysis.generate_plan') }}"
-        formmethod="post"
-      >
-        Generate Model Plan
-      </button>
-    </div>
-  </div>
+  <details class="workspace-accordion" open>
+    <summary>Latest Analysis Output</summary>
+    <pre class="json-block">{{ result_json }}</pre>
+  </details>
   {% if plan_preview %}
-  <pre class="json-block">{{ plan_preview | tojson(indent=2) }}</pre>
+  <details class="workspace-accordion">
+    <summary>Most Recent Plan</summary>
+    <pre class="json-block">{{ plan_preview | tojson(indent=2) }}</pre>
+  </details>
   {% endif %}
-</section>
-
-<section class="panel">
-  <h2>Step 6: Run Analysis</h2>
-  <div class="form-grid">
-    <div class="form-actions">
-      <button
-        type="submit"
-        form="wizard-form"
-        formaction="{{ url_for('analysis.run') }}"
-        formmethod="post"
-      >
-        Run Analysis
-      </button>
-    </div>
-  </div>
-</section>
-
-<section class="panel">
-  <h2>Data Preview</h2>
-  {% if dataset_profile.preview %}
-  <div class="table-scroll preview-table-wrap">
-    <table class="data-table wide-table">
-      <thead>
-        <tr>
-          {% for column in dataset_profile.columns %}
-          <th>{{ column.name }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in dataset_profile.preview %}
-        <tr>
-          {% for column in dataset_profile.columns %}
-          <td>{{ row[column.name] }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
   {% else %}
-  <p>No preview rows available.</p>
+  <p class="muted">Run an analysis to populate this screen.</p>
   {% endif %}
 </section>
-
-<section class="panel">
-  <h2>Column Profile</h2>
-  <div class="table-scroll">
-    <table class="data-table wide-table">
-      <thead>
-        <tr><th>Name</th><th>Type</th><th>Nulls</th><th>Unique</th><th>Examples</th></tr>
-      </thead>
-      <tbody>
-        {% for column in dataset_profile.columns %}
-        <tr>
-          <td>{{ column.name }}</td>
-          <td>{{ column.inferred_type }}</td>
-          <td>{{ column.null_count }}</td>
-          <td>{{ column.unique_count }}</td>
-          <td>{{ column.example_values | join(', ') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
 {% endif %}
 
-{% if result_json %}
-<section class="panel">
-  <h2>Step 7: Results</h2>
-  <pre class="json-block">{{ result_json }}</pre>
-</section>
-{% endif %}
 <script>
   (() => {
     const wizardForm = document.getElementById("wizard-form");

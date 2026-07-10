@@ -8,6 +8,7 @@ from ..schemas import AnalysisResponse, ErrorItem
 from .analysis_runner import run_analysis_function
 from .data_sources import load_request_dataset
 from .dataset_profiler import profile_dataset
+from .manual_plan_service import resolve_effective_plan
 from .orchestrator import create_analysis_plan, interpret_analysis_result
 from .request_validator import validate_analysis_request
 from .run_history import complete_run, create_run
@@ -25,15 +26,16 @@ def analyse_payload(payload: dict[str, Any]) -> dict[str, Any]:
         dataset_profile = profile_dataset(dataset)
         _validate_request_against_dataset(request_model, dataset_profile)
         plan = create_analysis_plan(request_model, dataset_profile)
-        result = run_analysis_function(request_model, dataset, plan)
-        interpretation = interpret_analysis_result(result, plan, dataset_profile)
+        effective_plan = resolve_effective_plan(plan.model_dump(), payload.get("manual_plan"))
+        result = run_analysis_function(request_model, dataset, effective_plan)
+        interpretation = interpret_analysis_result(result, effective_plan, dataset_profile)
 
         response = AnalysisResponse(
             status="success",
             request_id=run.request_id,
             analysis_type=result["analysis_type"],
             dataset_profile=dataset_profile,
-            llm_plan=plan.model_dump(),
+            llm_plan=effective_plan.model_dump(),
             model_results=result.get("model_results", {}),
             statistics=result.get("statistics", {}),
             predictions=result.get("predictions", []),

@@ -2,6 +2,7 @@ import json
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
+from ..services.assistant_service import available_analysis_functions, handle_assistant_message
 from ..services.analysis_service import analyse_payload
 from ..services.dataset_profiler import profile_dataset
 from ..services.data_sources import load_request_dataset
@@ -10,11 +11,15 @@ from ..services.saved_config_service import list_saved_configs, load_analysis_co
 from ..services.spreadsheet_loader import SpreadsheetData
 from ..services.upload_service import save_uploaded_dataset
 from ..services.wizard_state import (
+    add_assistant_chat_message,
+    clear_assistant_chat,
+    get_assistant_chat,
     get_plan_preview,
     get_result_preview,
     get_wizard_state,
     reset_wizard_state,
     save_wizard_state,
+    set_manual_plan,
     set_plan_preview,
     set_result_preview,
     update_wizard_state_from_form,
@@ -36,7 +41,9 @@ def home():
         "Inspect results",
     ]
     current_step = max(1, min(7, request.args.get("step", default=1, type=int)))
+    current_screen = request.args.get("screen") or _default_screen_for_step(current_step)
     wizard_state = get_wizard_state()
+    active_plan = wizard_state.get("manual_plan") or get_plan_preview()
     file_id = request.args.get("file_id") or wizard_state["data_source"].get("file_id")
     dataset_profile = _empty_profile()
     dataset = None
@@ -55,14 +62,20 @@ def home():
         "analysis/home.html",
         steps=steps,
         current_step=current_step,
+        current_screen=current_screen,
+        screens=_screen_definitions(),
         dataset_profile=dataset_profile,
         dataset=dataset,
+        result_preview=get_result_preview(),
         result_json=json.dumps(get_result_preview(), indent=2) if get_result_preview() else request.args.get("result_json"),
         plan_preview=get_plan_preview(),
+        active_plan=active_plan,
         saved_configs=list_saved_configs(),
         wizard_state=wizard_state,
         selected_file_id=file_id,
         available_columns=available_columns,
+        available_analysis_functions=available_analysis_functions(),
+        assistant_chat=get_assistant_chat(),
     )
 
 
@@ -77,7 +90,7 @@ def upload():
     state["data_source"]["file_id"] = record.file_name
     state["data_source"]["header_row"] = 1
     save_wizard_state(state)
-    return redirect(url_for("analysis.home", file_id=record.file_name, step=2))
+    return redirect(url_for("analysis.home", file_id=record.file_name, step=2, screen="configure"))
 
 
 @analysis_bp.post("/wizard/update")
@@ -90,6 +103,7 @@ def update_wizard():
             file_id=state["data_source"]["file_id"],
             step=next_step,
             header_row=state["data_source"].get("header_row", 1),
+            screen=request.form.get("screen") or "configure",
         )
     )
 
@@ -98,7 +112,7 @@ def update_wizard():
 def reset_wizard():
     reset_wizard_state()
     flash("Wizard reset.")
-    return redirect(url_for("analysis.home", step=1))
+    return redirect(url_for("analysis.home", step=1, screen="intake"))
 
 
 @analysis_bp.post("/wizard/save-config")
@@ -113,6 +127,7 @@ def save_config():
             file_id=state["data_source"]["file_id"],
             step=3,
             header_row=state["data_source"].get("header_row", 1),
+            screen="configure",
         )
     )
 
@@ -128,6 +143,7 @@ def load_config(config_id: int):
             file_id=state["data_source"]["file_id"],
             step=2,
             header_row=state["data_source"].get("header_row", 1),
+            screen="configure",
         )
     )
 
@@ -137,6 +153,8 @@ def generate_plan():
     state = update_wizard_state_from_form(request.form)
     dataset_profile, plan_preview = build_plan_preview(state)
     set_plan_preview(plan_preview)
+    set_manual_plan(plan_preview)
+    state = get_wizard_state()
     available_columns = [column["name"] for column in dataset_profile["columns"]]
     flash("Generated analysis plan.")
     return render_template(
@@ -151,18 +169,24 @@ def generate_plan():
             "Inspect results",
         ],
         current_step=5,
+        current_screen="plan",
+        screens=_screen_definitions(),
         dataset_profile=dataset_profile,
         dataset=load_request_dataset(
             state["data_source"]["file_id"],
             sheet_name=state["data_source"].get("sheet_name"),
             header_row=state["data_source"].get("header_row", 1),
         ),
+        result_preview=get_result_preview(),
         result_json=json.dumps(get_result_preview(), indent=2) if get_result_preview() else None,
         plan_preview=plan_preview,
+        active_plan=state.get("manual_plan") or plan_preview,
         saved_configs=list_saved_configs(),
         wizard_state=state,
         selected_file_id=state["data_source"]["file_id"],
         available_columns=available_columns,
+        available_analysis_functions=available_analysis_functions(),
+        assistant_chat=get_assistant_chat(),
     )
 
 
@@ -177,6 +201,55 @@ def run():
             file_id=state["data_source"]["file_id"],
             step=7,
             header_row=state["data_source"].get("header_row", 1),
+            screen="results",
+        )
+    )
+
+
+@analysis_bp.post("/assistant")
+def assistant():
+    state = update_wizard_state_from_form(request.form)
+    message = request.form.get("assistant_message", "").strip()
+    if not message:
+        flash("Enter a question or command for the data assistant.")
+        return redirect(
+            url_for(
+                "analysis.home",
+                file_id=state["data_source"]["file_id"],
+                step=request.form.get("step", type=int) or 4,
+                header_row=state["data_source"].get("header_row", 1),
+                screen="assistant",
+            )
+        )
+
+    add_assistant_chat_message("user", message)
+    updated_state, reply = handle_assistant_message(state, message)
+    save_wizard_state(updated_state)
+    add_assistant_chat_message("assistant", reply)
+    flash("Assistant updated the workspace.")
+    return redirect(
+        url_for(
+            "analysis.home",
+            file_id=updated_state["data_source"]["file_id"],
+            step=request.form.get("step", type=int) or 4,
+            header_row=updated_state["data_source"].get("header_row", 1),
+            screen="assistant",
+        )
+    )
+
+
+@analysis_bp.post("/assistant/clear")
+def clear_assistant():
+    state = get_wizard_state()
+    clear_assistant_chat()
+    flash("Assistant chat cleared.")
+    return redirect(
+        url_for(
+            "analysis.home",
+            file_id=state["data_source"].get("file_id"),
+            step=request.form.get("step", type=int) or 4,
+            header_row=state["data_source"].get("header_row", 1),
+            screen="assistant",
         )
     )
 
@@ -193,3 +266,26 @@ def _empty_profile() -> dict:
             rows=[],
         )
     )
+
+
+def _screen_definitions() -> list[dict[str, str]]:
+    return [
+        {"key": "intake", "label": "Ingest"},
+        {"key": "configure", "label": "Configure"},
+        {"key": "plan", "label": "Plan"},
+        {"key": "assistant", "label": "Assistant"},
+        {"key": "data", "label": "Data"},
+        {"key": "results", "label": "Results"},
+    ]
+
+
+def _default_screen_for_step(step: int) -> str:
+    if step <= 1:
+        return "intake"
+    if step <= 4:
+        return "configure"
+    if step == 5:
+        return "plan"
+    if step == 6:
+        return "assistant"
+    return "results"

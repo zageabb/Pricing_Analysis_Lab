@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   </head>
   <body>
+    <div class="activity-banner" id="activity-banner" aria-live="polite" hidden>
+      <span class="activity-dot"></span>
+      <span id="activity-text">AI is working...</span>
+    </div>
     <div class="shell">
       <aside class="sidebar">
         <div class="brand">Pricing Analysis Lab</div>
@@ -33,5 +37,47 @@
         {% block content %}{% endblock %}
       </main>
     </div>
+    <script>
+      (() => {
+        const banner = document.getElementById("activity-banner");
+        const bannerText = document.getElementById("activity-text");
+        if (!banner || !bannerText) {
+          return;
+        }
+
+        let busy = false;
+        const setBusy = (active, label) => {
+          busy = active;
+          document.body.classList.toggle("app-busy", active);
+          banner.hidden = !active;
+          if (label) {
+            bannerText.textContent = label;
+          }
+        };
+
+        document.addEventListener("submit", (event) => {
+          const form = event.target;
+          if (!(form instanceof HTMLFormElement)) {
+            return;
+          }
+          const submitter = event.submitter;
+          const label =
+            submitter?.dataset?.busyLabel ||
+            form.dataset.busyLabel ||
+            "";
+          if (!label) {
+            return;
+          }
+          setBusy(true, label);
+        });
+
+        window.addEventListener("pageshow", () => {
+          if (busy) {
+            return;
+          }
+          setBusy(false, "");
+        });
+      })();
+    </script>
   </body>
 </html>

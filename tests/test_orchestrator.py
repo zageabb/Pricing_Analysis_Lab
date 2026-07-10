@@ -1,4 +1,5 @@
 from pricing_analysis_lab.services.orchestrator import create_analysis_plan
+from pricing_analysis_lab.services.manual_plan_service import resolve_effective_plan
 from pricing_analysis_lab.services.request_validator import validate_analysis_request
 
 
@@ -91,3 +92,63 @@ def test_orchestrator_preserves_field_intent_for_non_supervised_fallback():
     assert plan.selected_function == "nearest_neighbor_similarity"
     assert plan.target_field == "price"
     assert plan.feature_fields == ["supplier", "quantity"]
+
+
+def test_orchestrator_honors_forced_analysis_function():
+    request_model = validate_analysis_request(
+        {
+            "data_source": {"type": "uploaded_file", "file_id": "example.csv"},
+            "task": "auto",
+            "parameter_fields": ["quantity"],
+            "target_fields": ["price"],
+            "model_preferences": {
+                "preferred_model": "auto",
+                "allow_llm_to_tune": True,
+                "forced_analysis_function": "filtered_search",
+            },
+        }
+    )
+    dataset_profile = {
+        "row_count": 20,
+        "columns": [
+            {"name": "quantity", "inferred_type": "numeric"},
+            {"name": "price", "inferred_type": "numeric"},
+        ],
+    }
+    plan = create_analysis_plan(request_model, dataset_profile)
+    assert plan.selected_function == "filtered_search"
+    assert plan.target_field == "price"
+
+
+def test_manual_plan_overrides_generated_plan():
+    request_model = validate_analysis_request(
+        {
+            "data_source": {"type": "uploaded_file", "file_id": "example.csv"},
+            "task": "regression",
+            "parameter_fields": ["quantity"],
+            "target_fields": ["price"],
+            "model_preferences": {"preferred_model": "auto", "allow_llm_to_tune": True},
+        }
+    )
+    dataset_profile = {
+        "row_count": 10,
+        "columns": [
+            {"name": "quantity", "inferred_type": "numeric"},
+            {"name": "price", "inferred_type": "numeric"},
+        ],
+    }
+    generated = create_analysis_plan(request_model, dataset_profile)
+    manual = resolve_effective_plan(
+        generated.model_dump(),
+        {
+            "selected_function": "filtered_search",
+            "reason": "User wants matching rows first.",
+            "target_field": "price",
+            "feature_fields": ["quantity"],
+            "model_settings": {"test_size": 0.1},
+        },
+    )
+
+    assert manual.selected_function == "filtered_search"
+    assert manual.reason == "User wants matching rows first."
+    assert manual.model_settings == {"test_size": 0.1}

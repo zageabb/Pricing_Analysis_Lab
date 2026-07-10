@@ -7,6 +7,7 @@ from flask import session
 
 
 WIZARD_SESSION_KEY = "analysis_wizard_state"
+ASSISTANT_CHAT_SESSION_KEY = "analysis_assistant_chat"
 
 
 def default_wizard_state() -> dict[str, Any]:
@@ -19,7 +20,12 @@ def default_wizard_state() -> dict[str, Any]:
         "output_fields": [],
         "excluded_fields": [],
         "filter_parameters": {},
-        "model_preferences": {"preferred_model": "auto", "allow_llm_to_tune": True},
+        "model_preferences": {
+            "preferred_model": "auto",
+            "allow_llm_to_tune": True,
+            "forced_analysis_function": "auto",
+        },
+        "manual_plan": {},
         "response_format": "human_and_json",
     }
 
@@ -47,6 +53,7 @@ def reset_wizard_state() -> dict[str, Any]:
     save_wizard_state(state)
     session.pop("analysis_plan_preview", None)
     session.pop("analysis_result_preview", None)
+    session.pop(ASSISTANT_CHAT_SESSION_KEY, None)
     return state
 
 
@@ -89,7 +96,9 @@ def update_wizard_state_from_form(form) -> dict[str, Any]:
     state["model_preferences"] = {
         "preferred_model": form.get("preferred_model", "auto"),
         "allow_llm_to_tune": form.get("allow_llm_to_tune") == "on",
+        "forced_analysis_function": form.get("forced_analysis_function", "auto"),
     }
+    state["manual_plan"] = _parse_manual_plan(form, state.get("manual_plan", {}))
     save_wizard_state(state)
     return state
 
@@ -112,6 +121,32 @@ def set_result_preview(result: dict[str, Any]) -> None:
 def get_result_preview() -> dict[str, Any] | None:
     value = session.get("analysis_result_preview")
     return value if isinstance(value, dict) else None
+
+
+def get_assistant_chat() -> list[dict[str, str]]:
+    value = session.get(ASSISTANT_CHAT_SESSION_KEY, [])
+    if not isinstance(value, list):
+        value = []
+        session[ASSISTANT_CHAT_SESSION_KEY] = value
+    return [item for item in value if isinstance(item, dict)]
+
+
+def add_assistant_chat_message(role: str, content: str) -> None:
+    history = get_assistant_chat()
+    history.append({"role": role, "content": content})
+    session[ASSISTANT_CHAT_SESSION_KEY] = history[-12:]
+    session.modified = True
+
+
+def clear_assistant_chat() -> None:
+    session[ASSISTANT_CHAT_SESSION_KEY] = []
+    session.modified = True
+
+
+def set_manual_plan(plan: dict[str, Any]) -> None:
+    state = get_wizard_state()
+    state["manual_plan"] = _normalize_manual_plan(plan)
+    save_wizard_state(state)
 
 
 def _split_csv_text(value: str) -> list[str]:
@@ -139,6 +174,48 @@ def _parse_string_list(value: str) -> list[str]:
 def _parse_json_object(value: str) -> dict[str, Any]:
     text = value.strip()
     return json.loads(text) if text else {}
+
+
+def _parse_manual_plan(form, current: dict[str, Any]) -> dict[str, Any]:
+    current_plan = current if isinstance(current, dict) else {}
+    raw_plan = form.get("manual_plan")
+    if raw_plan is not None:
+        try:
+            return _normalize_manual_plan(_parse_json_object(raw_plan))
+        except json.JSONDecodeError:
+            return _normalize_manual_plan(current_plan)
+
+    selected_function = _normalize_field_name(form.get("plan_selected_function", ""))
+    reason = _normalize_field_name(form.get("plan_reason", ""))
+    target_field = _normalize_field_name(form.get("plan_target_field", ""))
+    feature_fields = _parse_string_list(form.get("plan_feature_fields", ""))
+    model_settings_text = form.get("plan_model_settings", "")
+    preprocessing_text = form.get("plan_preprocessing", "")
+    validation_text = form.get("plan_validation", "")
+    if not any(
+        [
+            selected_function,
+            reason,
+            target_field,
+            feature_fields,
+            model_settings_text.strip(),
+            preprocessing_text.strip(),
+            validation_text.strip(),
+        ]
+    ):
+        return _normalize_manual_plan(current_plan)
+
+    return _normalize_manual_plan(
+        {
+            "selected_function": selected_function or current_plan.get("selected_function", "descriptive_statistics"),
+            "reason": reason or current_plan.get("reason", ""),
+            "target_field": target_field or None,
+            "feature_fields": feature_fields or current_plan.get("feature_fields", []),
+            "model_settings": _parse_json_object(model_settings_text) if model_settings_text.strip() else current_plan.get("model_settings", {}),
+            "preprocessing": _parse_json_object(preprocessing_text) if preprocessing_text.strip() else current_plan.get("preprocessing", {}),
+            "validation": _parse_json_object(validation_text) if validation_text.strip() else current_plan.get("validation", {}),
+        }
+    )
 
 
 def _parse_field_rows(form, field_name: str) -> list[str]:
@@ -224,6 +301,12 @@ def _normalize_wizard_state(state: dict[str, Any]) -> dict[str, Any]:
         for key, value in state.get("input_parameters", {}).items()
         if _normalize_field_name(key)
     }
+    preferences = dict(state.get("model_preferences", {}))
+    preferences.setdefault("preferred_model", "auto")
+    preferences.setdefault("allow_llm_to_tune", True)
+    preferences.setdefault("forced_analysis_function", "auto")
+    normalized["model_preferences"] = preferences
+    normalized["manual_plan"] = _normalize_manual_plan(state.get("manual_plan", {}))
     return normalized
 
 
@@ -235,3 +318,31 @@ def _parse_header_row(value: Any, fallback: int) -> int:
     except (TypeError, ValueError):
         return max(1, int(fallback))
     return max(1, parsed)
+
+
+def _normalize_manual_plan(plan: Any) -> dict[str, Any]:
+    if not isinstance(plan, dict):
+        return {}
+    feature_fields = []
+    if isinstance(plan.get("feature_fields"), list):
+        feature_fields = [_normalize_field_name(item) for item in plan.get("feature_fields", []) if _normalize_field_name(item)]
+    normalized = {
+        "selected_function": _normalize_field_name(plan.get("selected_function", "")),
+        "reason": _normalize_field_name(plan.get("reason", "")),
+        "target_field": _normalize_field_name(plan.get("target_field", "")) or None,
+        "feature_fields": feature_fields,
+        "model_settings": plan.get("model_settings", {}) if isinstance(plan.get("model_settings"), dict) else {},
+        "preprocessing": plan.get("preprocessing", {}) if isinstance(plan.get("preprocessing"), dict) else {},
+        "validation": plan.get("validation", {}) if isinstance(plan.get("validation"), dict) else {},
+    }
+    return normalized if any(
+        [
+            normalized["selected_function"],
+            normalized["reason"],
+            normalized["target_field"],
+            normalized["feature_fields"],
+            normalized["model_settings"],
+            normalized["preprocessing"],
+            normalized["validation"],
+        ]
+    ) else {}

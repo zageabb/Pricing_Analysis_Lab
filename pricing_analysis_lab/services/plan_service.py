@@ -4,6 +4,7 @@ from typing import Any
 
 from .data_sources import load_request_dataset
 from .dataset_profiler import profile_dataset
+from .manual_plan_service import resolve_effective_plan
 from .orchestrator import create_analysis_plan
 from .request_validator import validate_analysis_request
 
@@ -17,4 +18,4 @@ def build_plan_preview(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[st
     )
     dataset_profile = profile_dataset(dataset)
     plan = create_analysis_plan(request_model, dataset_profile)
-    return dataset_profile, plan.model_dump()
+    return dataset_profile, resolve_effective_plan(plan.model_dump(), payload.get("manual_plan")).model_dump()

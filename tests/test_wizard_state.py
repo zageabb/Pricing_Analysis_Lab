@@ -43,7 +43,7 @@ def test_update_wizard_state_from_selector_rows(app):
         assert state["excluded_fields"] == ["notes"]
 
 
-def test_secondary_actions_submit_live_wizard_form(app):
+def test_configure_and_plan_screens_expose_workspace_actions(app):
     client = app.test_client()
     with client.session_transaction() as session:
         session["analysis_wizard_state"] = {
@@ -59,14 +59,16 @@ def test_secondary_actions_submit_live_wizard_form(app):
             "response_format": "human_and_json",
         }
 
-    response = client.get("/")
-    html = response.get_data(as_text=True)
+    configure_response = client.get("/?screen=configure&step=2")
+    configure_html = configure_response.get_data(as_text=True)
+    assert 'id="wizard-form"' in configure_html
+    assert 'formaction="/wizard/save-config"' in configure_html
 
-    assert 'id="wizard-form"' in html
-    assert 'form="wizard-form"' in html
-    assert 'formaction="/wizard/save-config"' in html
-    assert 'formaction="/wizard/plan"' in html
-    assert 'formaction="/run"' in html
+    plan_response = client.get("/?screen=plan&step=5")
+    plan_html = plan_response.get_data(as_text=True)
+    assert 'id="wizard-form"' in plan_html
+    assert 'formaction="/wizard/plan"' in plan_html
+    assert "Run Analysis" in plan_html
 
 
 def test_update_wizard_state_prefers_richer_hidden_field_snapshots(app):
@@ -91,6 +93,29 @@ def test_update_wizard_state_prefers_richer_hidden_field_snapshots(app):
         assert state["output_fields"] == ["sku", "price", "margin"]
         assert state["parameter_fields"] == ["supplier", "quantity"]
         assert state["input_parameters"] == {"supplier": "Acme", "quantity": 12}
+
+
+def test_update_wizard_state_parses_manual_plan_editor_fields(app):
+    with app.test_request_context():
+        form = MultiDict(
+            [
+                ("file_id", "pricing.csv"),
+                ("task", "regression"),
+                ("preferred_model", "auto"),
+                ("plan_selected_function", "linear_regression"),
+                ("plan_reason", "Manual override for quick baseline."),
+                ("plan_target_field", "price"),
+                ("plan_feature_fields", "quantity, supplier"),
+                ("plan_model_settings", '{"fit_intercept": true, "test_size": 0.15}'),
+                ("plan_preprocessing", '{"scale_numeric": true}'),
+                ("plan_validation", '{"use_train_test_split": true, "use_cross_validation": true}'),
+            ]
+        )
+        state = update_wizard_state_from_form(form)
+        assert state["manual_plan"]["selected_function"] == "linear_regression"
+        assert state["manual_plan"]["target_field"] == "price"
+        assert state["manual_plan"]["feature_fields"] == ["quantity", "supplier"]
+        assert state["manual_plan"]["model_settings"] == {"fit_intercept": True, "test_size": 0.15}
 
 
 def test_update_wizard_state_preserves_field_names_with_commas(app):

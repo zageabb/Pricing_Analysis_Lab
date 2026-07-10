@@ -10,8 +10,24 @@ def create_analysis_plan(request_model: AnalysisRequest, dataset_profile: dict[s
     row_count = dataset_profile.get("row_count", 0)
     preferred_model = request_model.model_preferences.preferred_model.lower().strip()
     preferred_function = _preferred_function_for_request(request_model.task, preferred_model)
+    forced_function = request_model.model_preferences.forced_analysis_function.lower().strip()
     target_field = _select_target_field(request_model, columns)
     feature_fields = _select_feature_fields(request_model, columns, target_field)
+
+    if forced_function and forced_function != "auto":
+        return AnalysisPlan(
+            selected_function=forced_function,
+            reason="The analysis function was explicitly forced by the user.",
+            target_field=target_field,
+            feature_fields=feature_fields,
+            model_settings={
+                "n_estimators": 300,
+                "max_depth": None,
+                "min_samples_leaf": 2,
+                "test_size": 0.2,
+                "random_state": 42,
+            },
+        )
 
     if request_model.task == "data summary/statistical analysis":
         return AnalysisPlan(

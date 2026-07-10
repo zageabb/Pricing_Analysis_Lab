@@ -25,6 +25,7 @@ class DataSourceConfig(BaseModel):
 class ModelPreferences(BaseModel):
     preferred_model: str = "auto"
     allow_llm_to_tune: bool = True
+    forced_analysis_function: str = "auto"
 
 
 class AnalysisRequest(BaseModel):
