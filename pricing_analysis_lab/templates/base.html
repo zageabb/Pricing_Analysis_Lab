@@ -9,22 +9,34 @@
   <body>
     <div class="activity-banner" id="activity-banner" aria-live="polite" hidden>
       <span class="activity-dot"></span>
-      <span id="activity-text">AI is working...</span>
+      <span id="activity-text"></span>
     </div>
     <div class="shell">
       <aside class="sidebar">
         <div class="brand">Pricing Analysis Lab</div>
+        {% if request.blueprint == "analysis" and steps is defined %}
+        <div class="sidebar-section-label">Work Process</div>
+        <ol class="sidebar-step-list">
+          {% for step in steps %}
+          <li class="sidebar-step-item {% if loop.index == current_step %}sidebar-step-active{% endif %}">
+            <span class="sidebar-step-number">{{ loop.index }}</span>
+            <span>{{ step }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
         <nav>
-          <a href="{{ url_for('analysis.home') }}">Analysis</a>
-          <a href="{{ url_for('settings.index') }}">LLM Settings</a>
-          <a href="{{ url_for('admin.prompts') }}">Prompt Manager</a>
-          <a href="{{ url_for('workflow.index') }}">Workflow</a>
-          <a href="{{ url_for('json_api.index') }}">JSON API</a>
-          <a href="{{ url_for('history.index') }}">Run History</a>
-          <a href="{{ url_for('api.health') }}">API Health</a>
+          <a href="{{ url_for('analysis.home') }}">Back to Analysis</a>
         </nav>
+        {% endif %}
       </aside>
       <main class="content">
+        <header class="app-header">
+          <div class="app-header-copy">
+            <strong>Pricing Analysis Lab</strong>
+          </div>
+          <a href="{{ url_for('settings.index') }}" class="header-settings-button">Settings</a>
+        </header>
         {% with messages = get_flashed_messages() %}
           {% if messages %}
           <div class="flash-stack">
@@ -50,9 +62,7 @@
           busy = active;
           document.body.classList.toggle("app-busy", active);
           banner.hidden = !active;
-          if (label) {
-            bannerText.textContent = label;
-          }
+          bannerText.textContent = active ? label || "" : "";
         };
 
         document.addEventListener("submit", (event) => {

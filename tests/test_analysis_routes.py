@@ -21,7 +21,7 @@ def test_clear_assistant_chat_keeps_workspace_state(app):
     response = client.post("/assistant/clear", data={"step": "4"}, follow_redirects=False)
 
     assert response.status_code == 302
-    assert "screen=assistant" in response.location
+    assert "screen=plan" in response.location
     with client.session_transaction() as session:
         assert session["analysis_assistant_chat"] == []
         assert session["analysis_wizard_state"]["target_fields"] == ["price"]

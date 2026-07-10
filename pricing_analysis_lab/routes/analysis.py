@@ -218,7 +218,7 @@ def assistant():
                 file_id=state["data_source"]["file_id"],
                 step=request.form.get("step", type=int) or 4,
                 header_row=state["data_source"].get("header_row", 1),
-                screen="assistant",
+                screen=request.form.get("return_screen") or request.form.get("screen") or "plan",
             )
         )
 
@@ -233,7 +233,7 @@ def assistant():
             file_id=updated_state["data_source"]["file_id"],
             step=request.form.get("step", type=int) or 4,
             header_row=updated_state["data_source"].get("header_row", 1),
-            screen="assistant",
+            screen=request.form.get("return_screen") or request.form.get("screen") or "plan",
         )
     )
 
@@ -249,7 +249,7 @@ def clear_assistant():
             file_id=state["data_source"].get("file_id"),
             step=request.form.get("step", type=int) or 4,
             header_row=state["data_source"].get("header_row", 1),
-            screen="assistant",
+            screen=request.form.get("return_screen") or request.form.get("screen") or "plan",
         )
     )
 
@@ -273,7 +273,6 @@ def _screen_definitions() -> list[dict[str, str]]:
         {"key": "intake", "label": "Ingest"},
         {"key": "configure", "label": "Configure"},
         {"key": "plan", "label": "Plan"},
-        {"key": "assistant", "label": "Assistant"},
         {"key": "data", "label": "Data"},
         {"key": "results", "label": "Results"},
     ]
@@ -287,5 +286,5 @@ def _default_screen_for_step(step: int) -> str:
     if step == 5:
         return "plan"
     if step == 6:
-        return "assistant"
+        return "data"
     return "results"

@@ -4,56 +4,69 @@
 {% set output_rows = 6 %}
 {% set target_rows = 3 %}
 {% set excluded_rows = 4 %}
-<section class="hero workspace-hero">
-  <div>
-    <p class="eyebrow">Pricing Analysis Workspace</p>
-    <h1>Move between setup, planning, chat, and results without one long screen.</h1>
-    <p class="lede">
-      Use the assistant to inspect the spreadsheet, refine fields, and shape the analysis.
-      Good starting prompts are <code>which column should be the target?</code>,
-      <code>add output field Project Name</code>, and <code>force analysis type to linear_regression</code>.
-    </p>
-  </div>
-  <div class="hero-actions">
-    <form method="post" action="{{ url_for('analysis.reset_wizard') }}">
-      <button type="submit" class="ghost-button">Reset Workspace</button>
-    </form>
-  </div>
-</section>
+<section class="workspace-shell">
+  <aside class="workspace-rail">
+    <section class="panel workspace-rail-panel">
+      <p class="eyebrow">Pricing Analysis Workspace</p>
+      <h1>Build the analysis step by step.</h1>
+      <p class="lede">
+        Keep the process on the left and only work on one screen at a time.
+      </p>
+      <form method="post" action="{{ url_for('analysis.reset_wizard') }}">
+        <button type="submit" class="ghost-button">Reset Workspace</button>
+      </form>
+    </section>
 
-<section class="panel sticky-summary">
-  <div class="summary-bar">
-    <div class="summary-main">
+    <section class="panel workspace-rail-panel">
       <h2>Current Dataset</h2>
       <p class="muted">{{ selected_file_id or "No file uploaded yet" }}</p>
-    </div>
-    <div class="stat-grid compact-stats">
-      <div><strong>Rows</strong><span>{{ dataset_profile.row_count }}</span></div>
-      <div><strong>Columns</strong><span>{{ dataset_profile.column_count }}</span></div>
-      <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
-      <div><strong>Header Row</strong><span>{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}</span></div>
-    </div>
-  </div>
-  <div class="screen-nav">
-    {% for screen in screens %}
-    <a
-      href="{{ url_for('analysis.home', file_id=selected_file_id, step=current_step, screen=screen.key, header_row=wizard_state.data_source.header_row or 1) }}"
-      class="screen-pill {% if current_screen == screen.key %}screen-pill-active{% endif %}"
-    >
-      {{ screen.label }}
-    </a>
-    {% endfor %}
-  </div>
-</section>
+      <div class="workspace-stat-list">
+        <div><strong>Rows</strong><span>{{ dataset_profile.row_count }}</span></div>
+        <div><strong>Columns</strong><span>{{ dataset_profile.column_count }}</span></div>
+        <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
+        <div><strong>Header Row</strong><span>{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}</span></div>
+      </div>
+    </section>
 
-<section class="panel">
-  <h2>Workflow</h2>
-  <ol class="step-list wizard-steps compact-steps">
-    {% for step in steps %}
-    <li class="{% if loop.index == current_step %}active-step{% endif %}">{{ loop.index }}. {{ step }}</li>
-    {% endfor %}
-  </ol>
-</section>
+    <section class="panel workspace-rail-panel">
+      <h2>Work Process</h2>
+      <ol class="workspace-step-list">
+        {% for step in steps %}
+        <li class="workspace-step-item {% if loop.index == current_step %}workspace-step-active{% endif %}">
+          <span class="workspace-step-number">{{ loop.index }}</span>
+          <span>{{ step }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <section class="panel workspace-rail-panel">
+      <h2>Screens</h2>
+      <nav class="workspace-screen-list">
+        {% for screen in screens %}
+        <a
+          href="{{ url_for('analysis.home', file_id=selected_file_id, step=current_step, screen=screen.key, header_row=wizard_state.data_source.header_row or 1) }}"
+          class="workspace-screen-link {% if current_screen == screen.key %}workspace-screen-link-active{% endif %}"
+        >
+          {{ screen.label }}
+        </a>
+        {% endfor %}
+      </nav>
+    </section>
+
+    {% if current_screen == "assistant" %}
+    <section class="panel workspace-rail-panel">
+      <h2>Assistant Ideas</h2>
+      <ul class="simple-list workspace-hint-list">
+        <li><code>which field should be the target?</code></li>
+        <li><code>add output field Project Name</code></li>
+        <li><code>what settings do you recommend?</code></li>
+      </ul>
+    </section>
+    {% endif %}
+  </aside>
+
+  <div class="workspace-stage">
 
 {% if selected_file_id and current_screen in ["configure", "plan"] %}
 <form id="wizard-form" method="post" action="{{ url_for('analysis.update_wizard') }}" class="workspace-form">
@@ -615,4 +628,6 @@
     });
   })();
 </script>
+  </div>
+</section>
 {% endblock %}
