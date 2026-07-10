@@ -26,7 +26,10 @@ class FilteredSearchFunction(AnalysisFunction):
         return {
             "analysis_type": self.name,
             "statistics": {"matching_rows": int(filtered.shape[0])},
-            "predictions": visible.head(10).to_dict(orient="records"),
+            "predictions": [
+                {"prediction_scope": "match", **row}
+                for row in visible.head(10).to_dict(orient="records")
+            ],
             "feature_importance": [],
             "warnings": [] if filtered.shape[0] else ["No rows matched the supplied parameters."],
             "model_results": {},

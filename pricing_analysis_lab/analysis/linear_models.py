@@ -77,7 +77,13 @@ class LinearRegressionFunction(AnalysisFunction):
         if context.request.input_parameters:
             incoming = prediction_input(feature_fields, context.request.input_parameters)
             predicted_value = float(pipeline.predict(incoming)[0])
-            prediction_output.append({"target_field": target_field, "predicted_value": predicted_value})
+            prediction_output.append(
+                {
+                    "prediction_scope": "scenario",
+                    "target_field": target_field,
+                    "predicted_value": predicted_value,
+                }
+            )
 
         return {
             "analysis_type": self.name,

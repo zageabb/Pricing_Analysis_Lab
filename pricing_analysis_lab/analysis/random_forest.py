@@ -28,6 +28,11 @@ from pricing_analysis_lab.schemas import AnalysisPlan
 
 class _RandomForestBase(AnalysisFunction):
     minimum_rows = 8
+    notebook_defaults = {
+        "n_estimators": 500,
+        "min_samples_leaf": 2,
+        "random_state": 42,
+    }
 
     def validate(self, context: AnalysisContext, plan: AnalysisPlan) -> None:
         target_field = plan.target_field or (context.request.target_fields[0] if context.request.target_fields else None)
@@ -86,6 +91,24 @@ class _RandomForestBase(AnalysisFunction):
         row = {field: input_parameters.get(field) for field in feature_fields}
         return pd.DataFrame([row], columns=feature_fields)
 
+    def _notebook_compatible(self, plan: AnalysisPlan) -> bool:
+        return bool(plan.model_settings.get("notebook_compatible"))
+
+    def _estimator_settings(self, plan: AnalysisPlan) -> dict[str, Any]:
+        if self._notebook_compatible(plan):
+            return {
+                "n_estimators": self.notebook_defaults["n_estimators"],
+                "max_depth": plan.model_settings.get("max_depth"),
+                "min_samples_leaf": self.notebook_defaults["min_samples_leaf"],
+                "random_state": self.notebook_defaults["random_state"],
+            }
+        return {
+            "n_estimators": int(plan.model_settings.get("n_estimators", 300)),
+            "max_depth": plan.model_settings.get("max_depth"),
+            "min_samples_leaf": int(plan.model_settings.get("min_samples_leaf", 2)),
+            "random_state": int(plan.model_settings.get("random_state", 42)),
+        }
+
 
 class RandomForestRegressionFunction(_RandomForestBase):
     name = "random_forest_regression"
@@ -99,12 +122,13 @@ class RandomForestRegressionFunction(_RandomForestBase):
         frame, feature_fields = self._prepare_frame(context, target_field)
         X = frame[feature_fields]
         y = frame[target_field]
+        estimator_settings = self._estimator_settings(plan)
 
         estimator = RandomForestRegressor(
-            n_estimators=int(plan.model_settings.get("n_estimators", 300)),
-            max_depth=plan.model_settings.get("max_depth"),
-            min_samples_leaf=int(plan.model_settings.get("min_samples_leaf", 2)),
-            random_state=int(plan.model_settings.get("random_state", 42)),
+            n_estimators=estimator_settings["n_estimators"],
+            max_depth=estimator_settings["max_depth"],
+            min_samples_leaf=estimator_settings["min_samples_leaf"],
+            random_state=estimator_settings["random_state"],
         )
         pipeline = self._build_pipeline(frame, feature_fields, estimator)
 
@@ -132,20 +156,52 @@ class RandomForestRegressionFunction(_RandomForestBase):
         )
         if context.request.input_parameters:
             incoming = self._prediction_input(feature_fields, context.request.input_parameters)
-            predicted_value = float(pipeline.predict(incoming)[0])
-            prediction_output.append({"target_field": target_field, "predicted_value": predicted_value})
+            scenario_pipeline = pipeline
+            scenario_scope = "train_split"
+            warnings: list[str] = []
+            if self._notebook_compatible(plan):
+                scenario_pipeline = self._build_pipeline(
+                    frame,
+                    feature_fields,
+                    RandomForestRegressor(
+                        n_estimators=estimator_settings["n_estimators"],
+                        max_depth=estimator_settings["max_depth"],
+                        min_samples_leaf=estimator_settings["min_samples_leaf"],
+                        random_state=estimator_settings["random_state"],
+                    ),
+                )
+                scenario_pipeline.fit(X, y)
+                scenario_scope = "full_dataset_refit"
+                warnings.append(
+                    "Notebook-compatible random forest refit the scenario model on the full dataset; holdout metrics still come from the train/test split."
+                )
+            else:
+                warnings = []
+            predicted_value = float(scenario_pipeline.predict(incoming)[0])
+            prediction_output.append(
+                {
+                    "prediction_scope": "scenario",
+                    "target_field": target_field,
+                    "predicted_value": predicted_value,
+                }
+            )
+        else:
+            scenario_scope = "train_split"
+            warnings = []
 
         return {
             "analysis_type": self.name,
             "statistics": metrics,
             "predictions": prediction_output,
             "feature_importance": self._feature_importance(pipeline),
-            "warnings": [],
+            "warnings": warnings,
             "model_results": {
                 "train_rows": int(X_train.shape[0]),
                 "test_rows": int(X_test.shape[0]),
                 "target_field": target_field,
                 "feature_fields": feature_fields,
+                "scenario_training_scope": scenario_scope,
+                "notebook_compatible": self._notebook_compatible(plan),
             },
         }
 
@@ -162,12 +218,13 @@ class RandomForestClassificationFunction(_RandomForestBase):
         frame, feature_fields = self._prepare_frame(context, target_field)
         X = frame[feature_fields]
         y = frame[target_field].astype(str)
+        estimator_settings = self._estimator_settings(plan)
 
         estimator = RandomForestClassifier(
-            n_estimators=int(plan.model_settings.get("n_estimators", 300)),
-            max_depth=plan.model_settings.get("max_depth"),
-            min_samples_leaf=int(plan.model_settings.get("min_samples_leaf", 2)),
-            random_state=int(plan.model_settings.get("random_state", 42)),
+            n_estimators=estimator_settings["n_estimators"],
+            max_depth=estimator_settings["max_depth"],
+            min_samples_leaf=estimator_settings["min_samples_leaf"],
+            random_state=estimator_settings["random_state"],
         )
         pipeline = self._build_pipeline(frame, feature_fields, estimator)
 
@@ -203,28 +260,58 @@ class RandomForestClassificationFunction(_RandomForestBase):
         )
         if context.request.input_parameters:
             incoming = self._prediction_input(feature_fields, context.request.input_parameters)
-            predicted_class = str(pipeline.predict(incoming)[0])
-            output = {"target_field": target_field, "predicted_class": predicted_class}
-            model = pipeline.named_steps["model"]
+            scenario_pipeline = pipeline
+            scenario_scope = "train_split"
+            warnings: list[str] = []
+            if self._notebook_compatible(plan):
+                scenario_pipeline = self._build_pipeline(
+                    frame,
+                    feature_fields,
+                    RandomForestClassifier(
+                        n_estimators=estimator_settings["n_estimators"],
+                        max_depth=estimator_settings["max_depth"],
+                        min_samples_leaf=estimator_settings["min_samples_leaf"],
+                        random_state=estimator_settings["random_state"],
+                    ),
+                )
+                scenario_pipeline.fit(X, y)
+                scenario_scope = "full_dataset_refit"
+                warnings.append(
+                    "Notebook-compatible random forest refit the scenario model on the full dataset; holdout metrics still come from the train/test split."
+                )
+            else:
+                warnings = []
+            predicted_class = str(scenario_pipeline.predict(incoming)[0])
+            output = {
+                "prediction_scope": "scenario",
+                "target_field": target_field,
+                "predicted_class": predicted_class,
+            }
+            model = scenario_pipeline.named_steps["model"]
             if hasattr(model, "predict_proba"):
-                probabilities = pipeline.predict_proba(incoming)[0]
+                probabilities = scenario_pipeline.predict_proba(incoming)[0]
                 classes = model.classes_
                 output["class_probabilities"] = {
                     str(label): float(probability)
                     for label, probability in zip(classes, probabilities, strict=True)
                 }
             prediction_output.append(output)
+        else:
+            scenario_scope = "train_split"
+            warnings = []
 
         return {
             "analysis_type": self.name,
             "statistics": metrics,
             "predictions": prediction_output,
             "feature_importance": self._feature_importance(pipeline),
-            "warnings": [],
+            "warnings": warnings,
             "model_results": {
                 "train_rows": int(X_train.shape[0]),
                 "test_rows": int(X_test.shape[0]),
                 "target_field": target_field,
                 "feature_fields": feature_fields,
+                "scenario_training_scope": scenario_scope,
+                "notebook_compatible": self._notebook_compatible(plan),
             },
         }

@@ -68,6 +68,7 @@ def home():
         dataset_profile=dataset_profile,
         dataset=dataset,
         result_preview=result_preview,
+        prediction_groups=_group_predictions(result_preview),
         result_json=json.dumps(result_preview, indent=2) if result_preview else request.args.get("result_json"),
         plan_preview=get_plan_preview(),
         active_plan=active_plan,
@@ -180,6 +181,7 @@ def generate_plan():
             header_row=state["data_source"].get("header_row", 1),
         ),
         result_preview=result_preview,
+        prediction_groups=_group_predictions(result_preview),
         result_json=json.dumps(result_preview, indent=2) if result_preview else None,
         plan_preview=plan_preview,
         active_plan=state.get("manual_plan") or plan_preview,
@@ -298,3 +300,20 @@ def _default_screen_for_step(step: int) -> str:
     if step == 6:
         return "data"
     return "results"
+
+
+def _group_predictions(result_preview: dict | None) -> dict[str, list[dict]]:
+    if not isinstance(result_preview, dict):
+        return {"scenario": [], "evaluation": [], "match": [], "other": []}
+
+    grouped = {"scenario": [], "evaluation": [], "match": [], "other": []}
+    for item in result_preview.get("predictions", []):
+        if not isinstance(item, dict):
+            grouped["other"].append({"value": item})
+            continue
+        scope = str(item.get("prediction_scope", "")).strip().lower()
+        if scope in grouped:
+            grouped[scope].append(item)
+        else:
+            grouped["other"].append(item)
+    return grouped

@@ -118,6 +118,24 @@ def test_update_wizard_state_parses_manual_plan_editor_fields(app):
         assert state["manual_plan"]["model_settings"] == {"fit_intercept": True, "test_size": 0.15}
 
 
+def test_update_wizard_state_parses_notebook_compatible_random_forest_toggle(app):
+    with app.test_request_context():
+        form = MultiDict(
+            [
+                ("file_id", "pricing.csv"),
+                ("task", "regression"),
+                ("preferred_model", "random_forest_regression"),
+                ("plan_selected_function", "random_forest_regression"),
+                ("plan_target_field", "price"),
+                ("plan_feature_fields", "quantity"),
+                ("plan_model_settings", '{"n_estimators": 300, "test_size": 0.2}'),
+                ("plan_notebook_compatible", "on"),
+            ]
+        )
+        state = update_wizard_state_from_form(form)
+        assert state["manual_plan"]["model_settings"]["notebook_compatible"] is True
+
+
 def test_update_wizard_state_prefers_explicit_plan_editor_over_hidden_manual_plan(app):
     with app.test_request_context():
         form = MultiDict(

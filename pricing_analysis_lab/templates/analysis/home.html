@@ -305,6 +305,11 @@
           <label class="form-span">Model Settings JSON
             <textarea name="plan_model_settings" rows="8" placeholder='{"n_estimators": 300, "test_size": 0.2}'>{{ active_plan.model_settings | tojson(indent=2) if active_plan else '{}' }}</textarea>
           </label>
+          <label class="checkbox-row form-span">
+            <input type="checkbox" name="plan_notebook_compatible" {% if active_plan and active_plan.model_settings and active_plan.model_settings.get('notebook_compatible') %}checked{% endif %}>
+            Use notebook-compatible random forest defaults and refit the scenario prediction on the full dataset
+          </label>
+          <p class="muted form-span">This matches the attached notebook more closely: 500 trees, minimum leaf size 2, random state 42, and a full-dataset refit for the live scenario prediction while still keeping holdout validation metrics.</p>
           <label>Preprocessing JSON
             <textarea name="plan_preprocessing" rows="8" placeholder='{"encode_categoricals": true, "scale_numeric": false}'>{{ active_plan.preprocessing | tojson(indent=2) if active_plan else '{}' }}</textarea>
           </label>
@@ -430,6 +435,31 @@
       <p class="muted">{{ result_preview.interpretation.summary if result_preview.interpretation else "No interpretation summary yet." }}</p>
     </div>
   </div>
+  {% if prediction_groups.scenario or prediction_groups.evaluation or prediction_groups.match %}
+  <div class="two-column-layout">
+    {% if prediction_groups.scenario %}
+    <div class="panel subtle-panel">
+      <h3>Your Scenario Prediction</h3>
+      <p class="muted">This is the model output for the parameter values you entered.</p>
+      <pre class="json-block">{{ prediction_groups.scenario | tojson(indent=2) }}</pre>
+    </div>
+    {% endif %}
+    {% if prediction_groups.evaluation %}
+    <div class="panel subtle-panel">
+      <h3>Evaluation Sample</h3>
+      <p class="muted">These are holdout rows used to show how the model performed on unseen examples from your dataset.</p>
+      <pre class="json-block">{{ prediction_groups.evaluation | tojson(indent=2) }}</pre>
+    </div>
+    {% endif %}
+    {% if prediction_groups.match %}
+    <div class="panel subtle-panel">
+      <h3>Matching Rows</h3>
+      <p class="muted">These are similar or filtered rows returned by a search-style analysis rather than a single forecast.</p>
+      <pre class="json-block">{{ prediction_groups.match | tojson(indent=2) }}</pre>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
   {% if result_preview.interpretation %}
   <div class="two-column-layout">
     <div class="panel subtle-panel">
@@ -548,6 +578,12 @@
           preprocessing: parseJsonObject(wizardForm.elements.plan_preprocessing?.value),
           validation: parseJsonObject(wizardForm.elements.plan_validation?.value),
         };
+
+        if (wizardForm.elements.plan_notebook_compatible?.checked) {
+          manualPlan.model_settings.notebook_compatible = true;
+        } else if (manualPlan.model_settings && typeof manualPlan.model_settings === "object") {
+          delete manualPlan.model_settings.notebook_compatible;
+        }
 
         const hasManualPlan = Object.values(manualPlan).some((value) => {
           if (Array.isArray(value)) {

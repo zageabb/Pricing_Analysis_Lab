@@ -1,6 +1,8 @@
 from pathlib import Path
 
 import pytest
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
 
 from pricing_analysis_lab.schemas import AnalysisPlan
 from pricing_analysis_lab.services.analysis_runner import run_analysis_function
@@ -81,6 +83,43 @@ def test_random_forest_regression(tmp_path: Path):
     assert result["analysis_type"] == "random_forest_regression"
     assert "r2" in result["statistics"]
     assert result["predictions"]
+    scopes = {item.get("prediction_scope") for item in result["predictions"]}
+    assert "scenario" in scopes
+    assert "evaluation" in scopes
+
+
+def test_random_forest_regression_notebook_compatible_refits_scenario_on_full_dataset(tmp_path: Path):
+    dataset = load_spreadsheet(_write_regression_csv(tmp_path / "rf_notebook.csv"))
+    request_model = validate_analysis_request(
+        {
+            "data_source": {"type": "uploaded_file", "file_id": "rf_notebook.csv"},
+            "task": "regression",
+            "parameter_fields": ["quantity"],
+            "input_parameters": {"quantity": 18},
+            "target_fields": ["price"],
+            "output_fields": ["price"],
+        }
+    )
+    plan = AnalysisPlan(
+        selected_function="random_forest_regression",
+        reason="notebook-compatible check",
+        target_field="price",
+        feature_fields=["quantity"],
+        model_settings={"notebook_compatible": True, "test_size": 0.2},
+    )
+
+    result = run_analysis_function(request_model, dataset, plan)
+    scenario_prediction = next(item for item in result["predictions"] if item.get("prediction_scope") == "scenario")
+
+    frame = pd.DataFrame(dataset.rows, columns=dataset.columns)[["quantity", "price"]].dropna().copy()
+    model = RandomForestRegressor(n_estimators=500, min_samples_leaf=2, random_state=42)
+    model.fit(frame[["quantity"]], frame["price"])
+    expected_prediction = float(model.predict(pd.DataFrame([{"quantity": 18}]))[0])
+
+    assert result["model_results"]["notebook_compatible"] is True
+    assert result["model_results"]["scenario_training_scope"] == "full_dataset_refit"
+    assert scenario_prediction["predicted_value"] == pytest.approx(expected_prediction)
+    assert result["warnings"]
 
 
 def test_random_forest_classification(tmp_path: Path):
@@ -106,6 +145,9 @@ def test_random_forest_classification(tmp_path: Path):
     assert result["analysis_type"] == "random_forest_classification"
     assert "accuracy" in result["statistics"]
     assert result["predictions"][0]["predicted_class"]
+    scopes = {item.get("prediction_scope") for item in result["predictions"]}
+    assert "scenario" in scopes
+    assert "evaluation" in scopes
 
 
 def test_linear_regression(tmp_path: Path):
@@ -198,6 +240,7 @@ def test_nearest_neighbor_similarity(tmp_path: Path):
     assert result["analysis_type"] == "nearest_neighbor_similarity"
     assert result["predictions"]
     assert "similarity_distance" in result["predictions"][0]
+    assert result["predictions"][0]["prediction_scope"] == "match"
 
 
 def test_invalid_target_field(tmp_path: Path):

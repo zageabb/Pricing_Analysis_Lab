@@ -81,6 +81,7 @@ def evaluation_predictions(
     for index, actual_value, predicted_value in zip(row_frame.index.tolist(), actual_values, predicted_values, strict=True):
         source_row = dataset_frame.loc[index]
         payload = {field: _coerce_output_value(source_row[field]) for field in output_fields if field in source_row.index}
+        payload["prediction_scope"] = "evaluation"
         payload["target_field"] = target_field
         payload[actual_key] = _coerce_output_value(actual_value)
         payload[predicted_key] = _coerce_output_value(predicted_value)

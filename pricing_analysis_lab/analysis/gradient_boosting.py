@@ -88,7 +88,11 @@ class GradientBoostingRegressionFunction(_GradientBoostingBase):
         if context.request.input_parameters:
             incoming = prediction_input(feature_fields, context.request.input_parameters)
             prediction_output.append(
-                {"target_field": target_field, "predicted_value": float(pipeline.predict(incoming)[0])}
+                {
+                    "prediction_scope": "scenario",
+                    "target_field": target_field,
+                    "predicted_value": float(pipeline.predict(incoming)[0]),
+                }
             )
 
         return {
@@ -156,7 +160,11 @@ class GradientBoostingClassificationFunction(_GradientBoostingBase):
         if context.request.input_parameters:
             incoming = prediction_input(feature_fields, context.request.input_parameters)
             predicted_class = str(pipeline.predict(incoming)[0])
-            output = {"target_field": target_field, "predicted_class": predicted_class}
+            output = {
+                "prediction_scope": "scenario",
+                "target_field": target_field,
+                "predicted_class": predicted_class,
+            }
             model = pipeline.named_steps["model"]
             if hasattr(model, "predict_proba"):
                 probabilities = pipeline.predict_proba(incoming)[0]

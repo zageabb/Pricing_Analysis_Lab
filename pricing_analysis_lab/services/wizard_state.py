@@ -226,13 +226,20 @@ def _parse_manual_plan(form, current: dict[str, Any]) -> dict[str, Any]:
         ]
     )
     if has_editor_fields:
+        model_settings = _parse_json_object(model_settings_text) if model_settings_text.strip() else current_plan.get("model_settings", {})
+        if not isinstance(model_settings, dict):
+            model_settings = {}
+        if form.get("plan_notebook_compatible") == "on":
+            model_settings["notebook_compatible"] = True
+        else:
+            model_settings.pop("notebook_compatible", None)
         return _normalize_manual_plan(
             {
                 "selected_function": selected_function or current_plan.get("selected_function", "descriptive_statistics"),
                 "reason": reason or current_plan.get("reason", ""),
                 "target_field": target_field or None,
                 "feature_fields": feature_fields or current_plan.get("feature_fields", []),
-                "model_settings": _parse_json_object(model_settings_text) if model_settings_text.strip() else current_plan.get("model_settings", {}),
+                "model_settings": model_settings,
                 "preprocessing": _parse_json_object(preprocessing_text) if preprocessing_text.strip() else current_plan.get("preprocessing", {}),
                 "validation": _parse_json_object(validation_text) if validation_text.strip() else current_plan.get("validation", {}),
             }

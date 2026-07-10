@@ -104,6 +104,45 @@ def test_results_screen_loads_persisted_run_by_request_id(app):
     assert "Result loaded from run history." in html
 
 
+def test_results_screen_separates_scenario_and_evaluation_predictions(app):
+    with app.app_context():
+        db.session.add(
+            AnalysisRun(
+                request_id="run-789",
+                status="success",
+                analysis_type="random_forest_regression",
+                request_json="{}",
+                response_json=json.dumps(
+                    {
+                        "status": "success",
+                        "request_id": "run-789",
+                        "analysis_type": "random_forest_regression",
+                        "predictions": [
+                            {"prediction_scope": "evaluation", "predicted_value": 101, "actual_value": 100},
+                            {"prediction_scope": "scenario", "predicted_value": 118},
+                        ],
+                        "interpretation": {
+                            "summary": "Separated predictions.",
+                            "reasons": [],
+                            "caveats": [],
+                            "improvement_suggestions": [],
+                        },
+                    }
+                ),
+            )
+        )
+        db.session.commit()
+
+    client = app.test_client()
+    response = client.get("/?screen=results&step=7&request_id=run-789")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Your Scenario Prediction" in html
+    assert "Evaluation Sample" in html
+    assert "Matching Rows" not in html
+
+
 def test_run_route_persists_effective_plan_for_results_screen(app, monkeypatch):
     def fake_analyse_payload(_state):
         return {

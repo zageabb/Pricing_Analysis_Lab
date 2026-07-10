@@ -45,6 +45,7 @@ class NearestNeighborSimilarityFunction(AnalysisFunction):
         for distance, index in zip(distances[0], indices[0], strict=True):
             row = df.iloc[int(index)]
             payload = {field: row[field] for field in output_fields if field in row.index}
+            payload["prediction_scope"] = "match"
             payload["similarity_distance"] = float(distance)
             predictions.append(payload)
 
