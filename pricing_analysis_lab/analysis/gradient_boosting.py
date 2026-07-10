@@ -17,7 +17,12 @@ from sklearn.model_selection import train_test_split
 
 from pricing_analysis_lab.analysis.base import AnalysisContext, AnalysisFunction
 from pricing_analysis_lab.analysis.common import validate_fields_exist
-from pricing_analysis_lab.analysis.supervised import build_supervised_pipeline, prediction_input, prepare_supervised_frame
+from pricing_analysis_lab.analysis.supervised import (
+    build_supervised_pipeline,
+    evaluation_predictions,
+    prediction_input,
+    prepare_supervised_frame,
+)
 from pricing_analysis_lab.schemas import AnalysisPlan
 
 
@@ -71,7 +76,15 @@ class GradientBoostingRegressionFunction(_GradientBoostingBase):
         if (y_test != 0).all():
             metrics["mape"] = float(mean_absolute_percentage_error(y_test, predictions))
 
-        prediction_output = []
+        prediction_output = evaluation_predictions(
+            context,
+            X_test,
+            y_test.tolist(),
+            predictions.tolist(),
+            target_field,
+            predicted_key="predicted_value",
+            actual_key="actual_value",
+        )
         if context.request.input_parameters:
             incoming = prediction_input(feature_fields, context.request.input_parameters)
             prediction_output.append(
@@ -131,7 +144,15 @@ class GradientBoostingClassificationFunction(_GradientBoostingBase):
             "f1": float(f1_score(y_test, predictions, average="weighted", zero_division=0)),
         }
 
-        prediction_output = []
+        prediction_output = evaluation_predictions(
+            context,
+            X_test,
+            y_test.tolist(),
+            predictions.tolist(),
+            target_field,
+            predicted_key="predicted_class",
+            actual_key="actual_class",
+        )
         if context.request.input_parameters:
             incoming = prediction_input(feature_fields, context.request.input_parameters)
             predicted_class = str(pipeline.predict(incoming)[0])

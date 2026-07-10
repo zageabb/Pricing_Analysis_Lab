@@ -145,6 +145,43 @@ def test_gradient_boosting_regression(tmp_path: Path):
     assert result["feature_importance"]
 
 
+@pytest.mark.parametrize(
+    ("selected_function", "target_field", "expected_prediction_key", "csv_builder", "task"),
+    [
+        ("linear_regression", "price", "predicted_value", _write_regression_csv, "regression"),
+        ("random_forest_regression", "price", "predicted_value", _write_regression_csv, "regression"),
+        ("gradient_boosting_regression", "price", "predicted_value", _write_regression_csv, "regression"),
+        ("random_forest_classification", "band", "predicted_class", _write_classification_csv, "classification"),
+        ("gradient_boosting_classification", "band", "predicted_class", _write_classification_csv, "classification"),
+    ],
+)
+def test_supervised_models_return_holdout_predictions_without_input_parameters(
+    tmp_path: Path,
+    selected_function: str,
+    target_field: str,
+    expected_prediction_key: str,
+    csv_builder,
+    task: str,
+):
+    dataset = load_spreadsheet(csv_builder(tmp_path / f"{selected_function}.csv"))
+    request_model = validate_analysis_request(
+        {
+            "data_source": {"type": "uploaded_file", "file_id": f"{selected_function}.csv"},
+            "task": task,
+            "parameter_fields": ["supplier", "category", "region", "quantity"] if target_field == "price" or target_field == "band" else ["quantity"],
+            "target_fields": [target_field],
+            "output_fields": ["supplier", target_field],
+        }
+    )
+    plan = AnalysisPlan(selected_function=selected_function, reason="coverage", target_field=target_field)
+
+    result = run_analysis_function(request_model, dataset, plan)
+
+    assert result["analysis_type"] == selected_function
+    assert result["predictions"]
+    assert expected_prediction_key in result["predictions"][0]
+
+
 def test_nearest_neighbor_similarity(tmp_path: Path):
     dataset = load_spreadsheet(_write_regression_csv(tmp_path / "similarity.csv"))
     request_model = validate_analysis_request(

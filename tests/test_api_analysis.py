@@ -44,6 +44,42 @@ def test_api_analyse_success(tmp_path: Path):
     assert "llm_plan" in body
 
 
+def test_api_analyse_auto_without_input_parameters_still_returns_predictions(tmp_path: Path):
+    app = _make_app(tmp_path)
+    csv_path = app.config["UPLOAD_DIR"] / "pricing.csv"
+    csv_path.write_text(
+        "supplier,category,region,quantity,price\n"
+        "Acme,Transformer,UK,10,100\n"
+        "Acme,Transformer,UK,20,180\n"
+        "Bravo,Transformer,DE,10,110\n"
+        "Bravo,Cable,DE,30,210\n"
+        "Cora,Cable,UK,15,140\n"
+        "Cora,Switch,UK,40,260\n"
+        "Delta,Switch,DE,25,190\n"
+        "Delta,Transformer,FR,35,250\n"
+        "Echo,Cable,FR,50,320\n"
+        "Echo,Switch,UK,45,300\n",
+        encoding="utf-8",
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/api/analyse",
+        json={
+            "data_source": {"type": "uploaded_file", "file_id": "pricing.csv"},
+            "task": "auto",
+            "parameter_fields": ["supplier", "category", "region", "quantity"],
+            "target_fields": ["price"],
+            "output_fields": ["supplier", "price"],
+        },
+    )
+    body = response.get_json()
+
+    assert response.status_code == 200
+    assert body["status"] == "success"
+    assert body["predictions"]
+
+
 def test_api_analyse_error_for_missing_target(tmp_path: Path):
     app = _make_app(tmp_path)
     csv_path = app.config["UPLOAD_DIR"] / "pricing.csv"

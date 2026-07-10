@@ -8,7 +8,12 @@ from sklearn.model_selection import train_test_split
 
 from pricing_analysis_lab.analysis.base import AnalysisContext, AnalysisFunction
 from pricing_analysis_lab.analysis.common import validate_fields_exist
-from pricing_analysis_lab.analysis.supervised import build_supervised_pipeline, prediction_input, prepare_supervised_frame
+from pricing_analysis_lab.analysis.supervised import (
+    build_supervised_pipeline,
+    evaluation_predictions,
+    prediction_input,
+    prepare_supervised_frame,
+)
 from pricing_analysis_lab.schemas import AnalysisPlan
 
 
@@ -60,7 +65,15 @@ class LinearRegressionFunction(AnalysisFunction):
             for feature, value in zip(feature_names, coefficients, strict=True)
         ]
 
-        prediction_output = []
+        prediction_output = evaluation_predictions(
+            context,
+            X_test,
+            y_test.tolist(),
+            predictions.tolist(),
+            target_field,
+            predicted_key="predicted_value",
+            actual_key="actual_value",
+        )
         if context.request.input_parameters:
             incoming = prediction_input(feature_fields, context.request.input_parameters)
             predicted_value = float(pipeline.predict(incoming)[0])

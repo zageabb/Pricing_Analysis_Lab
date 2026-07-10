@@ -22,6 +22,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 from pricing_analysis_lab.analysis.base import AnalysisContext, AnalysisFunction
 from pricing_analysis_lab.analysis.common import dataset_to_dataframe, resolve_feature_fields, validate_fields_exist
+from pricing_analysis_lab.analysis.supervised import evaluation_predictions
 from pricing_analysis_lab.schemas import AnalysisPlan
 
 
@@ -120,7 +121,15 @@ class RandomForestRegressionFunction(_RandomForestBase):
         if (y_test != 0).all():
             metrics["mape"] = float(mean_absolute_percentage_error(y_test, predictions))
 
-        prediction_output = []
+        prediction_output = evaluation_predictions(
+            context,
+            X_test,
+            y_test.tolist(),
+            predictions.tolist(),
+            target_field,
+            predicted_key="predicted_value",
+            actual_key="actual_value",
+        )
         if context.request.input_parameters:
             incoming = self._prediction_input(feature_fields, context.request.input_parameters)
             predicted_value = float(pipeline.predict(incoming)[0])
@@ -183,7 +192,15 @@ class RandomForestClassificationFunction(_RandomForestBase):
             "f1": float(f1_score(y_test, predictions, average="weighted", zero_division=0)),
         }
 
-        prediction_output = []
+        prediction_output = evaluation_predictions(
+            context,
+            X_test,
+            y_test.tolist(),
+            predictions.tolist(),
+            target_field,
+            predicted_key="predicted_class",
+            actual_key="actual_class",
+        )
         if context.request.input_parameters:
             incoming = self._prediction_input(feature_fields, context.request.input_parameters)
             predicted_class = str(pipeline.predict(incoming)[0])

@@ -63,3 +63,37 @@ def build_supervised_pipeline(
 def prediction_input(feature_fields: list[str], input_parameters: dict[str, Any]) -> pd.DataFrame:
     row = {field: input_parameters.get(field) for field in feature_fields}
     return pd.DataFrame([row], columns=feature_fields)
+
+
+def evaluation_predictions(
+    context: AnalysisContext,
+    row_frame: pd.DataFrame,
+    actual_values,
+    predicted_values,
+    target_field: str,
+    predicted_key: str,
+    actual_key: str,
+    max_rows: int = 10,
+) -> list[dict[str, Any]]:
+    dataset_frame = dataset_to_dataframe(context)
+    output_fields = context.request.output_fields or context.request.parameter_fields or row_frame.columns.tolist()
+    rows: list[dict[str, Any]] = []
+    for index, actual_value, predicted_value in zip(row_frame.index.tolist(), actual_values, predicted_values, strict=True):
+        source_row = dataset_frame.loc[index]
+        payload = {field: _coerce_output_value(source_row[field]) for field in output_fields if field in source_row.index}
+        payload["target_field"] = target_field
+        payload[actual_key] = _coerce_output_value(actual_value)
+        payload[predicted_key] = _coerce_output_value(predicted_value)
+        rows.append(payload)
+        if len(rows) >= max_rows:
+            break
+    return rows
+
+
+def _coerce_output_value(value: Any) -> Any:
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except Exception:  # noqa: BLE001
+            return value
+    return value
