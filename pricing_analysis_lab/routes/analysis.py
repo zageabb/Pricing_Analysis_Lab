@@ -45,6 +45,7 @@ def home():
     wizard_state = get_wizard_state()
     active_plan = wizard_state.get("manual_plan") or get_plan_preview()
     file_id = request.args.get("file_id") or wizard_state["data_source"].get("file_id")
+    result_preview = get_result_preview(request.args.get("request_id"))
     dataset_profile = _empty_profile()
     dataset = None
     available_columns: list[str] = []
@@ -66,8 +67,8 @@ def home():
         screens=_screen_definitions(),
         dataset_profile=dataset_profile,
         dataset=dataset,
-        result_preview=get_result_preview(),
-        result_json=json.dumps(get_result_preview(), indent=2) if get_result_preview() else request.args.get("result_json"),
+        result_preview=result_preview,
+        result_json=json.dumps(result_preview, indent=2) if result_preview else request.args.get("result_json"),
         plan_preview=get_plan_preview(),
         active_plan=active_plan,
         saved_configs=list_saved_configs(),
@@ -156,6 +157,7 @@ def generate_plan():
     set_manual_plan(plan_preview)
     state = get_wizard_state()
     available_columns = [column["name"] for column in dataset_profile["columns"]]
+    result_preview = get_result_preview(request.args.get("request_id"))
     flash("Generated analysis plan.")
     return render_template(
         "analysis/home.html",
@@ -177,8 +179,8 @@ def generate_plan():
             sheet_name=state["data_source"].get("sheet_name"),
             header_row=state["data_source"].get("header_row", 1),
         ),
-        result_preview=get_result_preview(),
-        result_json=json.dumps(get_result_preview(), indent=2) if get_result_preview() else None,
+        result_preview=result_preview,
+        result_json=json.dumps(result_preview, indent=2) if result_preview else None,
         plan_preview=plan_preview,
         active_plan=state.get("manual_plan") or plan_preview,
         saved_configs=list_saved_configs(),
@@ -202,6 +204,7 @@ def run():
             step=7,
             header_row=state["data_source"].get("header_row", 1),
             screen="results",
+            request_id=result.get("request_id"),
         )
     )
 

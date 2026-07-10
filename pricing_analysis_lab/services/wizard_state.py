@@ -8,6 +8,7 @@ from flask import session
 
 WIZARD_SESSION_KEY = "analysis_wizard_state"
 ASSISTANT_CHAT_SESSION_KEY = "analysis_assistant_chat"
+RESULT_REQUEST_ID_SESSION_KEY = "analysis_result_request_id"
 
 
 def default_wizard_state() -> dict[str, Any]:
@@ -53,6 +54,7 @@ def reset_wizard_state() -> dict[str, Any]:
     save_wizard_state(state)
     session.pop("analysis_plan_preview", None)
     session.pop("analysis_result_preview", None)
+    session.pop(RESULT_REQUEST_ID_SESSION_KEY, None)
     session.pop(ASSISTANT_CHAT_SESSION_KEY, None)
     return state
 
@@ -114,11 +116,24 @@ def get_plan_preview() -> dict[str, Any] | None:
 
 
 def set_result_preview(result: dict[str, Any]) -> None:
-    session["analysis_result_preview"] = result
+    request_id = str(result.get("request_id", "")).strip()
+    if request_id:
+        session[RESULT_REQUEST_ID_SESSION_KEY] = request_id
+        session.pop("analysis_result_preview", None)
+    else:
+        session["analysis_result_preview"] = result
     session.modified = True
 
 
-def get_result_preview() -> dict[str, Any] | None:
+def get_result_preview(request_id: str | None = None) -> dict[str, Any] | None:
+    requested_id = (request_id or session.get(RESULT_REQUEST_ID_SESSION_KEY) or "").strip()
+    if requested_id:
+        result = _load_result_preview_from_history(requested_id)
+        if result is not None:
+            session[RESULT_REQUEST_ID_SESSION_KEY] = requested_id
+            session.modified = True
+            return result
+
     value = session.get("analysis_result_preview")
     return value if isinstance(value, dict) else None
 
@@ -147,6 +162,19 @@ def set_manual_plan(plan: dict[str, Any]) -> None:
     state = get_wizard_state()
     state["manual_plan"] = _normalize_manual_plan(plan)
     save_wizard_state(state)
+
+
+def _load_result_preview_from_history(request_id: str) -> dict[str, Any] | None:
+    from ..models import AnalysisRun
+
+    run = AnalysisRun.query.filter_by(request_id=request_id).order_by(AnalysisRun.id.desc()).first()
+    if run is None or not run.response_json:
+        return None
+    try:
+        value = json.loads(run.response_json)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def _split_csv_text(value: str) -> list[str]:

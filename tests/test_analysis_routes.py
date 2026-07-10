@@ -1,3 +1,9 @@
+import json
+
+from pricing_analysis_lab.extensions import db
+from pricing_analysis_lab.models import AnalysisRun
+
+
 def test_clear_assistant_chat_keeps_workspace_state(app):
     client = app.test_client()
     with client.session_transaction() as session:
@@ -60,3 +66,38 @@ def test_plan_screen_shows_manual_plan_editor(app):
     assert 'name="plan_selected_function"' in html
     assert 'name="plan_model_settings"' in html
     assert "AI Chat" in html
+
+
+def test_results_screen_loads_persisted_run_by_request_id(app):
+    with app.app_context():
+        db.session.add(
+            AnalysisRun(
+                request_id="run-123",
+                status="success",
+                analysis_type="linear_regression",
+                request_json="{}",
+                response_json=json.dumps(
+                    {
+                        "status": "success",
+                        "request_id": "run-123",
+                        "analysis_type": "linear_regression",
+                        "interpretation": {
+                            "summary": "Result loaded from run history.",
+                            "reasons": [],
+                            "caveats": [],
+                            "improvement_suggestions": [],
+                        },
+                    }
+                ),
+            )
+        )
+        db.session.commit()
+
+    client = app.test_client()
+    response = client.get("/?screen=results&step=7&request_id=run-123")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Latest Analysis Output" in html
+    assert "run-123" in html
+    assert "Result loaded from run history." in html
