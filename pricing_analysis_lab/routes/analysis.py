@@ -219,6 +219,7 @@ def assistant():
                 step=request.form.get("step", type=int) or 4,
                 header_row=state["data_source"].get("header_row", 1),
                 screen=request.form.get("return_screen") or request.form.get("screen") or "plan",
+                chat=request.form.get("chat") or "open",
             )
         )
 
@@ -234,6 +235,7 @@ def assistant():
             step=request.form.get("step", type=int) or 4,
             header_row=updated_state["data_source"].get("header_row", 1),
             screen=request.form.get("return_screen") or request.form.get("screen") or "plan",
+            chat=request.form.get("chat") or "open",
         )
     )
 
@@ -250,6 +252,7 @@ def clear_assistant():
             step=request.form.get("step", type=int) or 4,
             header_row=state["data_source"].get("header_row", 1),
             screen=request.form.get("return_screen") or request.form.get("screen") or "plan",
+            chat=request.form.get("chat") or "open",
         )
     )
 

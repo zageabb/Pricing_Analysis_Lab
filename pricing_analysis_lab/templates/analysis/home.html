@@ -18,31 +18,6 @@
     </section>
 
     <section class="panel workspace-rail-panel">
-      <h2>Current Dataset</h2>
-      <p class="muted">{{ selected_file_id or "No file uploaded yet" }}</p>
-      <div class="workspace-stat-list">
-        <div><strong>Rows</strong><span>{{ dataset_profile.row_count }}</span></div>
-        <div><strong>Columns</strong><span>{{ dataset_profile.column_count }}</span></div>
-        <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
-        <div><strong>Header Row</strong><span>{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}</span></div>
-      </div>
-    </section>
-
-    <section class="panel workspace-rail-panel">
-      <h2>Screens</h2>
-      <nav class="workspace-screen-list">
-        {% for screen in screens %}
-        <a
-          href="{{ url_for('analysis.home', file_id=selected_file_id, step=current_step, screen=screen.key, header_row=wizard_state.data_source.header_row or 1) }}"
-          class="workspace-screen-link {% if current_screen == screen.key %}workspace-screen-link-active{% endif %}"
-        >
-          {{ screen.label }}
-        </a>
-        {% endfor %}
-      </nav>
-    </section>
-
-    <section class="panel workspace-rail-panel">
       <h2>Assistant Ideas</h2>
       <ul class="simple-list workspace-hint-list">
         <li><code>which field should be the target?</code></li>
@@ -545,7 +520,7 @@
   })();
 </script>
 {% if selected_file_id %}
-<details class="assistant-float" id="assistant-float">
+<details class="assistant-float" id="assistant-float" {% if request.args.get("chat") == "open" %}open{% endif %}>
   <summary class="assistant-fab">AI Chat</summary>
   <div class="assistant-modal panel">
     <div class="assistant-modal-header">
@@ -557,6 +532,7 @@
         <input type="hidden" name="step" value="{{ current_step }}">
         <input type="hidden" name="screen" value="{{ current_screen }}">
         <input type="hidden" name="return_screen" value="{{ current_screen }}">
+        <input type="hidden" name="chat" value="open">
         <button type="submit" class="ghost-button">Clear Chat</button>
       </form>
     </div>
@@ -584,6 +560,7 @@
         <input type="hidden" name="step" value="{{ current_step }}">
         <input type="hidden" name="screen" value="{{ current_screen }}">
         <input type="hidden" name="return_screen" value="{{ current_screen }}">
+        <input type="hidden" name="chat" value="open">
         <input type="hidden" name="parameter_fields" value='{{ wizard_state.parameter_fields | tojson }}'>
         <input type="hidden" name="target_fields" value='{{ wizard_state.target_fields | tojson }}'>
         <input type="hidden" name="output_fields" value='{{ wizard_state.output_fields | tojson }}'>

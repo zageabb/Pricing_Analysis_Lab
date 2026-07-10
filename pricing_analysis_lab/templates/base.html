@@ -15,6 +15,29 @@
       <aside class="sidebar">
         <div class="brand">Pricing Analysis Lab</div>
         {% if request.blueprint == "analysis" and steps is defined %}
+        <section class="sidebar-card">
+          <div class="sidebar-section-label">Current Dataset</div>
+          <p class="sidebar-card-title">{{ selected_file_id or "No file uploaded yet" }}</p>
+          <div class="sidebar-meta-list">
+            <div><strong>Rows</strong><span>{{ dataset_profile.row_count }}</span></div>
+            <div><strong>Columns</strong><span>{{ dataset_profile.column_count }}</span></div>
+            <div><strong>Sheet</strong><span>{{ dataset_profile.sheet_name or "Not selected" }}</span></div>
+            <div><strong>Header</strong><span>{{ wizard_state.data_source.header_row or dataset_profile.header_row or 1 }}</span></div>
+          </div>
+        </section>
+        <section class="sidebar-card">
+          <div class="sidebar-section-label">Screens</div>
+          <nav class="sidebar-screen-list">
+            {% for screen in screens %}
+            <a
+              href="{{ url_for('analysis.home', file_id=selected_file_id, step=current_step, screen=screen.key, header_row=wizard_state.data_source.header_row or 1) }}"
+              class="sidebar-screen-link {% if current_screen == screen.key %}sidebar-screen-link-active{% endif %}"
+            >
+              {{ screen.label }}
+            </a>
+            {% endfor %}
+          </nav>
+        </section>
         <div class="sidebar-section-label">Work Process</div>
         <ol class="sidebar-step-list">
           {% for step in steps %}
